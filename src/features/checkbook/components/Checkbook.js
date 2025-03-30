@@ -3,8 +3,8 @@ import { Routes, Route, Link } from 'react-router-dom';
 import TransactionForm from './TransactionForm';
 import TransactionList from './TransactionList';
 import CategoryManager from './CategoryManager';
-import BudgetManager from './BudgetManager';
-import '../css/FinanceTracker.css';
+import CheckbookSummary from './CheckbookSummary';
+import '../css/Checkbook.css';
 
 function FinanceTracker({
   totalBalance,
@@ -82,10 +82,10 @@ function FinanceTracker({
 
   return (
     <div className="content">
-      <nav className="tracker-navbar">
-        <Link to="/tracker" className="nav-link">Transactions</Link>
-        <Link to="/tracker/categories" className="nav-link">Manage Categories</Link>
-        <Link to="/tracker/budget" className="nav-link">Manage Budget</Link>
+      <nav className="checkbook-navbar">
+        <Link to="/checkbook" className="nav-link">Transactions</Link>
+        <Link to="/checkbook/categories" className="nav-link">Manage Categories</Link>
+        <Link to="/checkbook/budget" className="nav-link">Manage Budget</Link>
       </nav>
       <Routes>
         <Route
@@ -222,7 +222,7 @@ function FinanceTracker({
         />
         <Route
           path="budget"
-          element={<BudgetManager categories={categories} addTransaction={addTransaction} />}
+          element={<CheckbookSummary categories={categories} addTransaction={addTransaction} />}
         />
       </Routes>
     </div>

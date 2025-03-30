@@ -1,5 +1,5 @@
 /* Tracker Sub-Navbar */
-.tracker-navbar {
+.checkbook-navbar {
   display: flex;
   gap: 16px;
   padding: 12px 24px;
@@ -9,7 +9,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
 }
 
-.tracker-navbar .nav-link {
+.checkbook-navbar .nav-link {
   text-decoration: none;
   font-weight: 500;
   padding: 8px 16px;
@@ -19,12 +19,12 @@
   color: white;
 }
 
-.tracker-navbar .nav-link:hover {
+.checkbook-navbar .nav-link:hover {
   background-color: #006666; /* Darker teal on hover */
   color: white;
 }
 
-.tracker-navbar .nav-link.active {
+.checkbook-navbar .nav-link.active {
   background-color: #004d4d; /* Even darker teal for active state */
   color: white;
 }

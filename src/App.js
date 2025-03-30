@@ -1,7 +1,7 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { BudgetProvider } from './features/checkbook/BudgetContext'; // Updated
-import FinanceTracker from './features/checkbook/components/FinanceTracker'; // Updated
+import { AppProvider } from './context/AppContext'; // Updated
+import Checkbook from './features/checkbook/components/Checkbook'; // Updated
 import useTransactions from './features/checkbook/hooks/useTransactions'; // Updated
 import useCategories from './features/checkbook/hooks/useCategories'; // Updated
 
@@ -23,7 +23,7 @@ function App() {
   };
 
   return (
-    <BudgetProvider>
+    <AppProvider>
       <Router>
         <div className="app">
           <nav className="navbar">
@@ -32,7 +32,7 @@ function App() {
               <NavLink to="/" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 Home
               </NavLink>
-              <NavLink to="/tracker" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
+              <NavLink to="/checkbook" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
                 Checkbook
               </NavLink>
               <NavLink to="/investments" className={({ isActive }) => `nav-link ${isActive ? 'active' : ''}`}>
@@ -51,9 +51,9 @@ function App() {
               }
             />
             <Route
-              path="/tracker/*"
+              path="/checkbook/*"
               element={
-                <FinanceTracker
+                <Checkbook
                   {...transactionData} // Includes addTransaction for future use
                   categories={categories}
                   addCategory={addCategory}
@@ -69,7 +69,7 @@ function App() {
           </Routes>
         </div>
       </Router>
-    </BudgetProvider>
+    </AppProvider>
   );
 }
 

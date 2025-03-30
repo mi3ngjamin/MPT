@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect } from "react";
 
-const BudgetContext = createContext();
+const AppContext = createContext();
 
-export const BudgetProvider = ({ children }) => {
+export const AppProvider = ({ children }) => {
   const [budgetItems, setBudgetItems] = useState(() => {
     const savedBudgets = localStorage.getItem("budgetItems");
     return savedBudgets ? JSON.parse(savedBudgets) : [];
@@ -29,10 +29,10 @@ export const BudgetProvider = ({ children }) => {
   };
 
   return (
-    <BudgetContext.Provider value={{ budgetItems, addBudgetItem, removeBudgetItem, updateBudgetItem }}>
+    <AppContext.Provider value={{ budgetItems, addBudgetItem, removeBudgetItem, updateBudgetItem }}>
       {children}
-    </BudgetContext.Provider>
+    </AppContext.Provider>
   );
 };
 
-export default BudgetContext;
+export default AppContext;

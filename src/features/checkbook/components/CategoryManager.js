@@ -36,7 +36,7 @@ function CategoryManager({ categories, addCategory, editCategory, deleteCategory
     <div className="category-manager">
       <h1>Manage Categories</h1>
       <nav className="navbar">
-        <Link to="/tracker" className="nav-button">Back to Transactions</Link>
+        <Link to="/checkbook" className="nav-button">Back to Transactions</Link>
       </nav>
       <div className="category-input">
         <input

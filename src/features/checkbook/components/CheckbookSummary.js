@@ -1,9 +1,9 @@
 import React, { useContext, useState } from "react";
 import { Link } from 'react-router-dom';
-import BudgetContext from '../BudgetContext';
+import AppContext from '../../../context/AppContext';
 
 const BudgetManager = ({ categories, addTransaction }) => {
-  const { budgetItems, addBudgetItem, removeBudgetItem, updateBudgetItem } = useContext(BudgetContext);
+  const { budgetItems, addBudgetItem, removeBudgetItem, updateBudgetItem } = useContext(AppContext);
   const [category, setCategory] = useState(categories[0] || "");
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
@@ -78,7 +78,7 @@ const BudgetManager = ({ categories, addTransaction }) => {
     <div className="category-manager">
       <h1>Manage Monthly Budget</h1>
       <nav className="navbar">
-        <Link to="/tracker" className="nav-button">Back to Transactions</Link>
+        <Link to="/checkbook" className="nav-button">Back to Transactions</Link>
       </nav>
       <div className="category-input">
         <select value={category} onChange={(e) => setCategory(e.target.value)}>
