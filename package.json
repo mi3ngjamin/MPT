@@ -17,6 +17,10 @@
     "typescript": "^4.9.5",
     "web-vitals": "^2.1.4"
   },
+  "devDependencies": {
+    "gh-pages": "^6.3.0",
+    "npm-force-resolutions": "^0.0.10"
+  },
   "resolutions": {
     "nth-check": "2.0.1",
     "postcss": "8.4.31"
@@ -26,7 +30,8 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "deploy": "gh-pages -d build"
   },
   "eslintConfig": {
     "extends": [
@@ -46,7 +51,5 @@
       "last 1 safari version"
     ]
   },
-  "devDependencies": {
-    "npm-force-resolutions": "^0.0.10"
-  }
+  "homepage": "https://mi3ngjamin.github.io/MPT"
 }
