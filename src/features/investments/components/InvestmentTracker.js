@@ -13,7 +13,10 @@ const InvestmentTracker = () => {
     setLoading(true);
     setError(null);
     try {
-      const apiKey = 'cvkq56pr01qtnb8u8b80cvkq56pr01qtnb8u8b8g'; // Replace with your Finnhub API key
+      const apiKey = process.env.REACT_APP_FINNHUB_API_KEY;
+      if (!apiKey) {
+        throw new Error('API key is missing. Please configure it in your environment.');
+      }
       const uniqueTickers = [...new Set(investments.map((inv) => inv.ticker))];
       const pricePromises = uniqueTickers.map(async (ticker) => {
         try {
