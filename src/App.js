@@ -1,12 +1,14 @@
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react-router-dom';
-import { BudgetProvider } from './components/BudgetContext';
-import FinanceTracker from './components/FinanceTracker';
-import InvestmentTracker from './components/InvestmentTracker';
-import TradesList from './components/TradesList'; 
-import useTransactions from './hooks/useTransactions';
-import useCategories from './hooks/useCategories';
-import './App.css';
+import { BudgetProvider } from './features/checkbook/BudgetContext'; // Updated
+import FinanceTracker from './features/checkbook/components/FinanceTracker'; // Updated
+import useTransactions from './features/checkbook/hooks/useTransactions'; // Updated
+import useCategories from './features/checkbook/hooks/useCategories'; // Updated
+
+import InvestmentTracker from './features/investments/components/InvestmentTracker'; // Updated
+import TradesList from './features/investments/components/TradesList'; // Updated
+
+import './shared/css/App.css'; // Updated
 
 /**
  * Main App component with routing and state management.

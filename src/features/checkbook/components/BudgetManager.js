@@ -1,6 +1,6 @@
 import React, { useContext, useState } from "react";
 import { Link } from 'react-router-dom';
-import BudgetContext from "./BudgetContext";
+import BudgetContext from '../BudgetContext';
 
 const BudgetManager = ({ categories, addTransaction }) => {
   const { budgetItems, addBudgetItem, removeBudgetItem, updateBudgetItem } = useContext(BudgetContext);
