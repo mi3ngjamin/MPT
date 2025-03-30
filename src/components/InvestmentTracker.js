@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import useInvestments from '../hooks/useInvestments.js';
 import '../css/InvestmentTracker.css';
@@ -9,7 +9,7 @@ const InvestmentTracker = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const fetchLivePrices = async () => {
+  const fetchLivePrices = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
@@ -43,13 +43,13 @@ const InvestmentTracker = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [investments]); // Dependency: investments
 
   useEffect(() => {
     if (investments.length > 0) {
       fetchLivePrices();
     }
-  }, [investments]);
+  }, [investments, fetchLivePrices]); // Include fetchLivePrices
 
   const calculatePosition = () => {
     const positions = investments.reduce((acc, inv) => {

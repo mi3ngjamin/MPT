@@ -3,7 +3,7 @@ import { BrowserRouter as Router, Routes, Route, NavLink, Navigate } from 'react
 import { BudgetProvider } from './components/BudgetContext';
 import FinanceTracker from './components/FinanceTracker';
 import InvestmentTracker from './components/InvestmentTracker';
-import TradesList from './components/TradesList'; // Update the import
+import TradesList from './components/TradesList'; 
 import useTransactions from './hooks/useTransactions';
 import useCategories from './hooks/useCategories';
 import './App.css';
@@ -13,7 +13,7 @@ import './App.css';
  */
 function App() {
   const transactionData = useTransactions();
-  const { transactions, setTransactions, addTransaction } = transactionData;
+  const { transactions, setTransactions } = transactionData; // Destructure only what's used here
   const { categories, addCategory, editCategory, deleteCategory } = useCategories(transactions);
 
   const updateTransactionsFromCategories = (updatedTransactions) => {
@@ -52,7 +52,7 @@ function App() {
               path="/tracker/*"
               element={
                 <FinanceTracker
-                  {...transactionData}
+                  {...transactionData} // Includes addTransaction for future use
                   categories={categories}
                   addCategory={addCategory}
                   editCategory={(oldCat, newCat) => updateTransactionsFromCategories(editCategory(oldCat, newCat))}
@@ -61,7 +61,7 @@ function App() {
               }
             />
             <Route path="/investments" element={<InvestmentTracker />} />
-            <Route path="/trades" element={<TradesList />} /> {/* Update the route */}
+            <Route path="/trades" element={<TradesList />} />
             <Route path="" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
