@@ -1,38 +1,77 @@
-.App {
-  text-align: center;
+/* Reset and Base Styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
 }
 
-.App-logo {
-  height: 40vmin;
-  pointer-events: none;
+body {
+  font-family: 'Inter', sans-serif; /* Modern, clean font */
+  background-color: #f4f7fa; /* Light gray-blue background */
+  color: #333; /* Dark gray text for readability */
 }
 
-@media (prefers-reduced-motion: no-preference) {
-  .App-logo {
-    animation: App-logo-spin infinite 20s linear;
-  }
+/* App Container */
+.app {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px;
 }
 
-.App-header {
-  background-color: #282c34;
-  min-height: 100vh;
+/* Main Navbar */
+.navbar {
   display: flex;
-  flex-direction: column;
+  justify-content: space-between;
   align-items: center;
-  justify-content: center;
-  font-size: calc(10px + 2vmin);
-  color: white;
+  padding: 16px 24px;
+  background-color: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+  margin-bottom: 32px;
 }
 
-.App-link {
-  color: #61dafb;
+.navbar h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: #1a73e8; /* Vibrant blue for branding */
 }
 
-@keyframes App-logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
+.nav-link {
+  text-decoration: none;
+  color: #1a73e8; /* Teal color for links */
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.nav-link:hover {
+  background-color: #e8f0fe; /* Light blue hover */
+  color: #1557b0; /* Darker blue on hover */
+}
+
+.nav-link.active {
+  background-color: #e8f0fe; /* Light blue for active state */
+  color: #1557b0; /* Darker blue for active state */
+  font-weight: 600; /* Slightly bolder for active state */
+}
+
+/* Home Page */
+.home {
+  text-align: center;
+  padding: 2rem;
+}
+
+.home a {
+  text-decoration: none;
+  color: #1a73e8; /* Teal color for links */
+  font-weight: 500;
+  padding: 8px 16px;
+  border-radius: 8px;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+.home a:hover {
+  background-color: #e8f0fe; /* Light blue hover */
+  color: #1557b0; /* Darker blue on hover */
 }
