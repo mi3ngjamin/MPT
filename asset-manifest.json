@@ -1,0 +1,13 @@
+{
+  "files": {
+    "main.css": "/MPT/static/css/main.a2d8ba3f.css",
+    "main.js": "/MPT/static/js/main.388b5ba0.js",
+    "index.html": "/MPT/index.html",
+    "main.a2d8ba3f.css.map": "/MPT/static/css/main.a2d8ba3f.css.map",
+    "main.388b5ba0.js.map": "/MPT/static/js/main.388b5ba0.js.map"
+  },
+  "entrypoints": [
+    "static/css/main.a2d8ba3f.css",
+    "static/js/main.388b5ba0.js"
+  ]
+}
