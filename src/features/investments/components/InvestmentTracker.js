@@ -13,7 +13,7 @@ const InvestmentTracker = () => {
     setLoading(true);
     setError(null);
     try {
-      const apiKey = 'cvk7391r01qu5brn0jlgcvk7391r01qu5brn0jm0'; // Replace with your Finnhub API key
+      const apiKey = 'cvkq56pr01qtnb8u8b80cvkq56pr01qtnb8u8b8g'; // Replace with your Finnhub API key
       const uniqueTickers = [...new Set(investments.map((inv) => inv.ticker))];
       const pricePromises = uniqueTickers.map(async (ticker) => {
         try {
