@@ -196,6 +196,7 @@ const InvestmentTracker = () => {
     <div className="investment-tracker">
       <div className="header-section">
         <div className="action-buttons">
+        <Link to="/prices" className="view-trades-button">Manage Prices</Link>
           <button onClick={fetchLivePrices} className="button" disabled={loading}>
             {loading ? 'Loading...' : 'Refresh Live Prices'}
           </button>

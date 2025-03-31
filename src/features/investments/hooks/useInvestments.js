@@ -104,6 +104,7 @@ const useInvestments = () => {
 
   return {
     investments,
+    setInvestments,
     sortedInvestments,
     filteredInvestments,
     accounts,

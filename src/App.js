@@ -4,6 +4,7 @@ import { AppProvider } from './context/AppContext';
 import Checkbook from './features/checkbook/Checkbook'; // FinanceTracker
 import InvestmentTracker from './features/investments/InvestmentTracker';
 import TradesList from './features/investments/components/TradesList';
+import PriceManager from './features/investments/components/PriceManager'; 
 import './shared/css/App.css';
 
 /**
@@ -41,6 +42,7 @@ function App() {
             <Route path="/checkbook/*" element={<Checkbook />} />
             <Route path="/investments" element={<InvestmentTracker />} />
             <Route path="/trades" element={<TradesList />} />
+            <Route path="/prices" element={<PriceManager />} />
             <Route path="" element={<Navigate to="/" replace />} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
