@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import useInvestments from '../hooks/useInvestments.js';
-import '../css/InvestmentTracker.css';
+import useInvestments from './hooks/useInvestments'; // Updated to relative path
+import './css/InvestmentTracker.css'; // Updated
 
 const InvestmentTracker = () => {
   const { investments } = useInvestments();
@@ -13,7 +13,10 @@ const InvestmentTracker = () => {
     setLoading(true);
     setError(null);
     try {
-      const apiKey = 'cvk7391r01qu5brn0jlgcvk7391r01qu5brn0jm0'; // Replace with your Finnhub API key
+      const apiKey = process.env.REACT_APP_FINNHUB_API_KEY;
+      if (!apiKey) {
+        throw new Error('API key is missing. Please configure it in your environment.');
+      }
       const uniqueTickers = [...new Set(investments.map((inv) => inv.ticker))];
       const pricePromises = uniqueTickers.map(async (ticker) => {
         try {
