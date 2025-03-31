@@ -34,6 +34,7 @@
 
 .view-trades-button {
   padding: 0.5rem 1rem;
+  font-size: 14px;
   background-color: #008080;
   color: white;
   text-decoration: none;

@@ -1,50 +1,23 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import useInvestments from './hooks/useInvestments';
+import useLivePrices from './hooks/useLivePrices';
 import './css/InvestmentTracker.css';
 
 const InvestmentTracker = () => {
   const { investments, calculatePositions, aggregatePortfolioPositions, calculateAccountTotals } = useInvestments();
-  const [livePrices, setLivePrices] = useState({});
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
+  const tickers = investments.map((inv) => inv.ticker);
+  const { livePrices, loading, error, fetchLivePrices } = useLivePrices(tickers);
   const [sortConfig, setSortConfig] = useState({});
+  const [hasFetched, setHasFetched] = useState(false); // Track initial fetch
 
-  const fetchLivePrices = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const apiKey = process.env.REACT_APP_FINNHUB_API_KEY;
-      if (!apiKey) throw new Error('API key is missing.');
-      const uniqueTickers = [...new Set(investments.map((inv) => inv.ticker))];
-      const pricePromises = uniqueTickers.map(async (ticker) => {
-        try {
-          const response = await fetch(`https://finnhub.io/api/v1/quote?symbol=${ticker}&token=${apiKey}`);
-          if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-          const data = await response.json();
-          return { ticker, price: data.c || null };
-        } catch (err) {
-          console.error(`Error fetching price for ${ticker}:`, err);
-          return { ticker, price: null };
-        }
-      });
-      const prices = await Promise.all(pricePromises);
-      const priceMap = prices.reduce((acc, { ticker, price }) => {
-        acc[ticker] = price;
-        return acc;
-      }, {});
-      setLivePrices(priceMap);
-    } catch (err) {
-      console.error('Error fetching live prices:', err);
-      setError('Failed to fetch live prices. Check your Finnhub API key.');
-    } finally {
-      setLoading(false);
-    }
-  }, [investments]);
-
+  // Fetch prices on initial load only if investments exist and we haven’t fetched yet
   useEffect(() => {
-    if (investments.length > 0) fetchLivePrices();
-  }, [investments, fetchLivePrices]);
+    if (investments.length > 0 && !hasFetched) {
+      fetchLivePrices();
+      setHasFetched(true); // Prevent subsequent fetches on re-render
+    }
+  }, [investments.length, hasFetched, fetchLivePrices]); // Depend on length, not investments object
 
   const positions = calculatePositions();
   const portfolioPositions = aggregatePortfolioPositions(positions);
@@ -132,7 +105,7 @@ const InvestmentTracker = () => {
           <button onClick={fetchLivePrices} className="button" disabled={loading}>
             {loading ? 'Loading...' : 'Refresh Live Prices'}
           </button>
-          <Link to="/trades" className="view-trades-button">View Trades</Link>
+          <Link to="/trades" className="button view-trades-button">View Trades</Link>
         </div>
       </div>
       {error && <p className="error-message">{error}</p>}
