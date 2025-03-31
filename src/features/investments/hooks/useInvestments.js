@@ -52,6 +52,56 @@ const useInvestments = () => {
   // Get unique accounts for the filter dropdown
   const accounts = ['All', ...new Set(investments.map((inv) => inv.account || 'Unknown'))];
 
+  // Calculate positions (per account-ticker combo)
+  const calculatePositions = () => {
+    const positions = investments.reduce((acc, inv) => {
+      const key = `${inv.account}-${inv.ticker}`;
+      if (!acc[key]) {
+        acc[key] = { account: inv.account, ticker: inv.ticker, shares: 0, totalCost: 0 };
+      }
+      const shares = parseFloat(inv.shares);
+      const cost = shares * parseFloat(inv.price);
+      if (inv.transactionType === 'BUY') {
+        acc[key].shares += shares;
+        acc[key].totalCost += cost;
+      } else if (inv.transactionType === 'SELL') {
+        acc[key].shares -= shares;
+        acc[key].totalCost -= cost;
+      }
+      return acc;
+    }, {});
+
+    return Object.values(positions).filter((pos) => pos.shares > 0);
+  };
+
+  // Aggregate positions by ticker for Total Portfolio
+  const aggregatePortfolioPositions = (positions) => {
+    const aggregated = positions.reduce((acc, pos) => {
+      if (!acc[pos.ticker]) {
+        acc[pos.ticker] = { ticker: pos.ticker, shares: 0, totalCost: 0 };
+      }
+      acc[pos.ticker].shares += pos.shares;
+      acc[pos.ticker].totalCost += pos.totalCost;
+      return acc;
+    }, {});
+    return Object.values(aggregated);
+  };
+
+  // Calculate totals for an account's positions
+  const calculateAccountTotals = (accountPositions, livePrices) => {
+    return accountPositions.reduce(
+      (acc, pos) => {
+        const currentPrice = livePrices[pos.ticker] || 0;
+        const marketValue = pos.shares * currentPrice;
+        const unrealizedPL = marketValue - pos.totalCost;
+        acc.marketValue += marketValue;
+        acc.unrealizedPL += unrealizedPL;
+        return acc;
+      },
+      { marketValue: 0, unrealizedPL: 0 }
+    );
+  };
+
   return {
     investments,
     sortedInvestments,
@@ -65,6 +115,9 @@ const useInvestments = () => {
     importInvestments,
     clearInvestments,
     deleteInvestment,
+    calculatePositions,
+    aggregatePortfolioPositions,
+    calculateAccountTotals,
   };
 };
 
