@@ -9,15 +9,41 @@ const InvestmentTracker = () => {
   const tickers = investments.map((inv) => inv.ticker);
   const { livePrices, loading, error, fetchLivePrices } = useLivePrices(tickers);
   const [sortConfig, setSortConfig] = useState({});
-  const [hasFetched, setHasFetched] = useState(false); // Track initial fetch
+  const [hasFetched, setHasFetched] = useState(false);
+  const [visibleColumnsBeforeMarketValue, setVisibleColumnsBeforeMarketValue] = useState(4); // Default for desktop
 
-  // Fetch prices on initial load only if investments exist and we haven’t fetched yet
+  // Detect screen size and adjust colSpan
+  useEffect(() => {
+    const updateVisibleColumns = () => {
+      const isTablet = window.matchMedia('(max-width: 1024px)').matches;
+      const isMobile = window.matchMedia('(max-width: 768px)').matches;
+
+      if (isMobile) {
+        // Mobile: Ticker, Shares (2 columns before Market Value)
+        setVisibleColumnsBeforeMarketValue(2);
+      } else if (isTablet) {
+        // Tablet: Ticker, Shares, Current Price (3 columns before Market Value)
+        setVisibleColumnsBeforeMarketValue(3);
+      } else {
+        // Desktop: Ticker, Shares, Avg Cost, Current Price (4 columns before Market Value)
+        setVisibleColumnsBeforeMarketValue(4);
+      }
+    };
+
+    // Initial check
+    updateVisibleColumns();
+
+    // Add resize listener
+    window.addEventListener('resize', updateVisibleColumns);
+    return () => window.removeEventListener('resize', updateVisibleColumns);
+  }, []);
+
   useEffect(() => {
     if (investments.length > 0 && !hasFetched) {
       fetchLivePrices();
-      setHasFetched(true); // Prevent subsequent fetches on re-render
+      setHasFetched(true);
     }
-  }, [investments.length, hasFetched, fetchLivePrices]); // Depend on length, not investments object
+  }, [investments.length, hasFetched, fetchLivePrices]);
 
   const positions = calculatePositions();
   const portfolioPositions = aggregatePortfolioPositions(positions);
@@ -98,6 +124,74 @@ const InvestmentTracker = () => {
     });
   };
 
+  const renderTable = (positions, account) => {
+    const sortedPositions = sortPositions(positions, account);
+    const totals = calculateAccountTotals(positions, livePrices);
+
+    return (
+      <table>
+        <thead>
+          <tr>
+            <th className="col-ticker" onClick={() => handleSort(account, 'ticker')}>
+              Ticker{getSortIndicator(account, 'ticker')}
+            </th>
+            <th className="col-shares" onClick={() => handleSort(account, 'shares')}>
+              Shares{getSortIndicator(account, 'shares')}
+            </th>
+            <th className="col-avg-cost" onClick={() => handleSort(account, 'avgCost')}>
+              Average Cost{getSortIndicator(account, 'avgCost')}
+            </th>
+            <th className="col-current-price" onClick={() => handleSort(account, 'currentPrice')}>
+              Current Price{getSortIndicator(account, 'currentPrice')}
+            </th>
+            <th className="col-market-value" onClick={() => handleSort(account, 'marketValue')}>
+              Market Value{getSortIndicator(account, 'marketValue')}
+            </th>
+            <th className="col-portfolio-percentage" onClick={() => handleSort(account, 'portfolioPercentage')}>
+              % of Portfolio{getSortIndicator(account, 'portfolioPercentage')}
+            </th>
+            <th className="col-unrealized-pl" onClick={() => handleSort(account, 'unrealizedPL')}>
+              Unrealized P/L{getSortIndicator(account, 'unrealizedPL')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {sortedPositions.map((pos, index) => {
+            const avgCost = pos.totalCost / pos.shares;
+            const currentPrice = livePrices[pos.ticker] || 0;
+            const marketValue = pos.shares * currentPrice;
+            const portfolioPercentage =
+              totalMarketValue > 0 ? (marketValue / totalMarketValue) * 100 : 0;
+            const unrealizedPL = marketValue - pos.totalCost;
+            return (
+              <tr key={index}>
+                <td className="col-ticker">{pos.ticker}</td>
+                <td className="col-shares">{pos.shares.toFixed(2)}</td>
+                <td className="col-avg-cost">{formatCurrency(avgCost)}</td>
+                <td className="col-current-price">{currentPrice ? formatCurrency(currentPrice) : 'N/A'}</td>
+                <td className="col-market-value">{currentPrice ? formatCurrency(marketValue) : 'N/A'}</td>
+                <td className="col-portfolio-percentage">{portfolioPercentage.toFixed(2)}%</td>
+                <td className="col-unrealized-pl" style={{ color: unrealizedPL >= 0 ? 'green' : 'red' }}>
+                  {currentPrice ? formatCurrency(unrealizedPL) : 'N/A'}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+        <tfoot>
+          <tr className="total-row">
+            <td className="col-ticker" colSpan={visibleColumnsBeforeMarketValue}>Total</td>
+            <td className="col-market-value">{formatCurrency(totals.marketValue)}</td>
+            <td className="col-portfolio-percentage"></td>
+            <td className="col-unrealized-pl" style={{ color: totals.unrealizedPL >= 0 ? 'green' : 'red' }}>
+              {formatCurrency(totals.unrealizedPL)}
+            </td>
+          </tr>
+        </tfoot>
+      </table>
+    );
+  };
+
   return (
     <div className="investment-tracker">
       <div className="header-section">
@@ -105,143 +199,21 @@ const InvestmentTracker = () => {
           <button onClick={fetchLivePrices} className="button" disabled={loading}>
             {loading ? 'Loading...' : 'Refresh Live Prices'}
           </button>
-          <Link to="/trades" className="button view-trades-button">View Trades</Link>
+          <Link to="/trades" className="view-trades-button">View Trades</Link>
         </div>
       </div>
       {error && <p className="error-message">{error}</p>}
       {positions.length > 0 ? (
         <>
-          {Object.entries(positionsByAccount).map(([account, accountPositions]) => {
-            const accountTotals = calculateAccountTotals(accountPositions, livePrices);
-            const sortedPositions = sortPositions(accountPositions, account);
-            return (
-              <div key={account} className="account-section">
-                <h3>{account}</h3>
-                <table>
-                  <thead>
-                    <tr>
-                      <th onClick={() => handleSort(account, 'ticker')}>
-                        Ticker{getSortIndicator(account, 'ticker')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'shares')}>
-                        Shares{getSortIndicator(account, 'shares')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'avgCost')}>
-                        Average Cost{getSortIndicator(account, 'avgCost')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'currentPrice')}>
-                        Current Price{getSortIndicator(account, 'currentPrice')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'marketValue')}>
-                        Market Value{getSortIndicator(account, 'marketValue')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'portfolioPercentage')}>
-                        % of Portfolio{getSortIndicator(account, 'portfolioPercentage')}
-                      </th>
-                      <th onClick={() => handleSort(account, 'unrealizedPL')}>
-                        Unrealized P/L{getSortIndicator(account, 'unrealizedPL')}
-                      </th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {sortedPositions.map((pos, index) => {
-                      const avgCost = pos.totalCost / pos.shares;
-                      const currentPrice = livePrices[pos.ticker] || 0;
-                      const marketValue = pos.shares * currentPrice;
-                      const portfolioPercentage =
-                        totalMarketValue > 0 ? (marketValue / totalMarketValue) * 100 : 0;
-                      const unrealizedPL = marketValue - pos.totalCost;
-                      return (
-                        <tr key={index}>
-                          <td>{pos.ticker}</td>
-                          <td>{pos.shares.toFixed(2)}</td>
-                          <td>{formatCurrency(avgCost)}</td>
-                          <td>{currentPrice ? formatCurrency(currentPrice) : 'N/A'}</td>
-                          <td>{currentPrice ? formatCurrency(marketValue) : 'N/A'}</td>
-                          <td>{portfolioPercentage.toFixed(2)}%</td>
-                          <td style={{ color: unrealizedPL >= 0 ? 'green' : 'red' }}>
-                            {currentPrice ? formatCurrency(unrealizedPL) : 'N/A'}
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                  <tfoot>
-                    <tr className="total-row">
-                      <td colSpan="4">Total</td>
-                      <td>{formatCurrency(accountTotals.marketValue)}</td>
-                      <td></td>
-                      <td style={{ color: accountTotals.unrealizedPL >= 0 ? 'green' : 'red' }}>
-                        {formatCurrency(accountTotals.unrealizedPL)}
-                      </td>
-                    </tr>
-                  </tfoot>
-                </table>
-              </div>
-            );
-          })}
+          {Object.entries(positionsByAccount).map(([account, accountPositions]) => (
+            <div key={account} className="account-section">
+              <h3>{account}</h3>
+              {renderTable(accountPositions, account)}
+            </div>
+          ))}
           <div className="summary-section">
             <h3>Total Portfolio</h3>
-            <table>
-              <thead>
-                <tr>
-                  <th onClick={() => handleSort('portfolio', 'ticker')}>
-                    Ticker{getSortIndicator('portfolio', 'ticker')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'shares')}>
-                    Shares{getSortIndicator('portfolio', 'shares')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'avgCost')}>
-                    Average Cost{getSortIndicator('portfolio', 'avgCost')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'currentPrice')}>
-                    Current Price{getSortIndicator('portfolio', 'currentPrice')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'marketValue')}>
-                    Market Value{getSortIndicator('portfolio', 'marketValue')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'portfolioPercentage')}>
-                    % of Portfolio{getSortIndicator('portfolio', 'portfolioPercentage')}
-                  </th>
-                  <th onClick={() => handleSort('portfolio', 'unrealizedPL')}>
-                    Unrealized P/L{getSortIndicator('portfolio', 'unrealizedPL')}
-                  </th>
-                </tr>
-              </thead>
-              <tbody>
-                {sortPositions(portfolioPositions, 'portfolio').map((pos, index) => {
-                  const avgCost = pos.totalCost / pos.shares;
-                  const currentPrice = livePrices[pos.ticker] || 0;
-                  const marketValue = pos.shares * currentPrice;
-                  const portfolioPercentage =
-                    totalMarketValue > 0 ? (marketValue / totalMarketValue) * 100 : 0;
-                  const unrealizedPL = marketValue - pos.totalCost;
-                  return (
-                    <tr key={index}>
-                      <td>{pos.ticker}</td>
-                      <td>{pos.shares.toFixed(2)}</td>
-                      <td>{formatCurrency(avgCost)}</td>
-                      <td>{currentPrice ? formatCurrency(currentPrice) : 'N/A'}</td>
-                      <td>{currentPrice ? formatCurrency(marketValue) : 'N/A'}</td>
-                      <td>{portfolioPercentage.toFixed(2)}%</td>
-                      <td style={{ color: unrealizedPL >= 0 ? 'green' : 'red' }}>
-                        {currentPrice ? formatCurrency(unrealizedPL) : 'N/A'}
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-              <tfoot>
-                <tr className="total-row">
-                  <td colSpan="4">Total</td>
-                  <td>{formatCurrency(totalMarketValue)}</td>
-                  <td></td>
-                  <td style={{ color: portfolioPositions.reduce((sum, pos) => sum + ((livePrices[pos.ticker] || 0) * pos.shares - pos.totalCost), 0) >= 0 ? 'green' : 'red' }}>
-                    {formatCurrency(portfolioPositions.reduce((sum, pos) => sum + ((livePrices[pos.ticker] || 0) * pos.shares - pos.totalCost), 0))}
-                  </td>
-                </tr>
-              </tfoot>
-            </table>
+            {renderTable(portfolioPositions, 'portfolio')}
           </div>
         </>
       ) : (
