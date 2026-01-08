@@ -1,179 +1,264 @@
 .investment-tracker {
-  padding: 1rem;
-}
-
-/* Header Section */
-.header-section {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.action-buttons {
-  display: flex;
-  gap: 0.5rem;
-  flex-wrap: wrap;
-}
-
-.button, .view-trades-button {
-  padding: 0.5rem 1rem;
-  background-color: #008080;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 0.9rem;
-  text-decoration: none;
-}
-
-.button:hover, .view-trades-button:hover {
-  background-color: #006666;
-}
-
-.button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-}
-
-/* Account and Summary Sections */
-.account-section, .summary-section {
-  margin-bottom: 1.5rem;
-}
-
-.account-section h3, .summary-section h3 {
-  font-size: 1.25rem;
-  margin-bottom: 0.75rem;
-  color: #34495e;
-}
-
-/* Tables */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  margin-bottom: 1rem;
-}
-
-th, td {
-  padding: 0.5rem;
-  border: 1px solid #ddd;
-  text-align: right;
-  font-size: 0.9rem;
-}
-
-th {
-  background-color: #f8f9fa;
-  cursor: pointer;
-  user-select: none;
-}
-
-th:hover {
-  background-color: #e0e0e0;
-}
-
-td.col-ticker {
-  text-align: right;
-}
-
-.total-row {
-  font-weight: bold;
-  background-color: #eef2f7;
+  padding: 1.5rem;
+  max-width: 1400px;
+  margin: 0 auto;
 }
 
 /* Error Message */
 .error-message {
   color: #dc3545;
   font-weight: 600;
-  font-size: 0.875rem;
-  margin-bottom: 1rem;
-  padding: 0.5rem 0.75rem;
+  font-size: 0.95rem;
+  margin: 1.5rem 0;
+  padding: 1rem;
   background-color: #f8d7da;
-  border-radius: 6px;
+  border-radius: 12px;
+  text-align: center;
 }
 
-/* Responsive Adjustments */
-@media (max-width: 1024px) {
+/* Account Cards */
+.account-section, .summary-section {
+  margin-bottom: 2rem;
+}
+
+.account-section > div, .summary-section {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  overflow: hidden;
+  transition: box-shadow 0.3s ease;
+}
+
+.account-section > div:hover {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* Collapsible Header */
+.account-section h3 {
+  margin: 0;
+  padding: 20px 24px;
+  background: #f8fafc;
+  font-size: 1.4rem;
+  font-weight: 600;
+  color: #1e293b;
+  cursor: pointer;
+  user-select: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: background 0.2s;
+}
+
+.account-section h3:hover {
+  background: #e2e8f0;
+}
+
+.account-section h3 span {
+  font-size: 1.2rem;
+  color: #64748b;
+  font-weight: bold;
+}
+
+.summary-section h3 {
+  padding: 20px 24px;
+  background: #e8f5e8;
+  color: #166534;
+  font-size: 1.5rem;
+  font-weight: 700;
+  text-align: center;
+  margin: 0;
+  border-radius: 16px 16px 0 0;
+}
+
+/* Table Styling */
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 1rem;
+}
+
+th, td {
+  padding: 14px 12px;
+  text-align: right;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+th {
+  background-color: #f1f5f9;
+  color: #475569;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  transition: background 0.2s;
+}
+
+th:hover {
+  background-color: #e2e8f0;
+}
+
+td.col-ticker {
+  text-align: left;
+  font-weight: 500;
+  color: #1e293b;
+}
+
+.total-row {
+  font-weight: bold;
+  background-color: #eef2f7 !important;
+  font-size: 1.1rem;
+}
+
+.total-row td {
+  padding: 16px 12px;
+}
+
+/* Positive/Negative Colors */
+td[colspan] + td {
+  color: inherit;
+}
+
+/* FAB Container */
+.fab-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+}
+
+.fab-main {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: #008080;
+  color: white;
+  font-size: 32px;
+  border: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.fab-main:hover:not(:disabled) {
+  background-color: #006666;
+  transform: scale(1.1);
+}
+
+.fab-main:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.fab-menu {
+  position: absolute;
+  bottom: 80px;
+  right: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: flex-end;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(20px);
+  transition: all 0.3s ease;
+  pointer-events: none;
+}
+
+.fab-item {
+  min-width: 180px;
+  padding: 14px 20px;
+  border-radius: 50px;
+  color: white;
+  font-weight: 500;
+  font-size: 1rem;
+  text-decoration: none;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.2s;
+  pointer-events: auto;
+}
+
+.fab-item:hover {
+  transform: translateX(-6px);
+}
+
+.manage-item {
+  background-color: #6366f1;
+}
+
+.trades-item {
+  background-color: #10b981;
+}
+
+.fab-container:hover .fab-menu,
+.fab-container:focus-within .fab-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
+
+/* Mobile Adjustments */
+@media (max-width: 768px) {
   .investment-tracker {
-    padding: 0.75rem;
+    padding: 1rem;
   }
 
-  .action-buttons {
-    gap: 0.3rem;
-  }
-
-  .button, .view-trades-button {
-    padding: 0.4rem 0.8rem;
-    font-size: 0.85rem;
+  .account-section h3 {
+    padding: 16px;
+    font-size: 1.25rem;
   }
 
   th, td {
-    font-size: 0.85rem;
+    padding: 12px 8px;
+    font-size: 0.95rem;
   }
 
-  /* Hide Avg Cost and % of Portfolio on tablet */
+  .fab-main {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
+  }
+
+  .fab-item {
+    min-width: 160px;
+    padding: 14px 18px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  .fab-main {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
+  }
+}
+
+/* Responsive column hiding (keep your logic) */
+@media (max-width: 1024px) {
   .col-avg-cost,
   .col-portfolio-percentage {
     display: none;
   }
-
-  /* Ensure total row cells align with visible columns */
   .total-row .col-portfolio-percentage {
     display: none;
   }
 }
 
 @media (max-width: 768px) {
-  .header-section {
-    justify-content: center;
-    margin-bottom: 1rem;
-  }
-
-  .action-buttons {
-    justify-content: center;
-    width: 100%;
-  }
-
-  .account-section h3, .summary-section h3 {
-    font-size: 1.1rem;
-    text-align: center;
-  }
-
-  /* Hide additional columns on mobile */
   .col-avg-cost,
   .col-current-price,
   .col-portfolio-percentage,
   .col-unrealized-pl {
     display: none;
   }
-
-  /* Ensure total row cells align with visible columns */
   .total-row .col-portfolio-percentage,
   .total-row .col-unrealized-pl {
     display: none;
-  }
-
-  th, td {
-    padding: 0.4rem;
-    font-size: 0.8rem;
-  }
-}
-
-@media (max-width: 480px) {
-  .investment-tracker {
-    padding: 0.5rem;
-  }
-
-  .button, .view-trades-button {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.75rem;
-  }
-
-  th, td {
-    font-size: 0.75rem;
-  }
-
-  .error-message {
-    font-size: 0.75rem;
-    padding: 0.4rem 0.6rem;
   }
 }

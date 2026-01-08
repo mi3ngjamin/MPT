@@ -207,13 +207,33 @@ const InvestmentTracker = () => {
 
   return (
     <div className="investment-tracker">
-      <div className="header-section">
-        <div className="action-buttons">
-        <Link to="/prices" className="view-trades-button">Manage Prices</Link>
-          <button onClick={fetchLivePrices} className="button" disabled={loading}>
-            {loading ? 'Loading...' : 'Refresh Live Prices'}
-          </button>
-          <Link to="/trades" className="view-trades-button">View Trades</Link>
+      {/* Floating Action Button for main actions */}
+      <div className="fab-container">
+        <button
+          className="fab-main"
+          onClick={fetchLivePrices}
+          disabled={loading}
+          aria-label="Refresh live prices"
+        >
+          {loading ? '⟳' : '🔄'}
+        </button>
+
+        <div className="fab-menu">
+          <Link
+            to="/prices"
+            className="fab-item manage-item"
+            title="Manage custom prices"
+            onClick={() => loading || fetchLivePrices()} // Optional: refresh on navigate
+          >
+            ⚙️ Manage Prices
+          </Link>
+          <Link
+            to="/trades"
+            className="fab-item trades-item"
+            title="View all transactions"
+          >
+            📋 View Transactions
+          </Link>
         </div>
       </div>
       {error && <p className="error-message">{error}</p>}

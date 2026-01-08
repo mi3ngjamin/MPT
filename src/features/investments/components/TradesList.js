@@ -18,6 +18,7 @@ const TradesList = () => {
     deleteInvestment,
     setInvestments,
   } = useInvestments();
+
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState(null);
   const [formData, setFormData] = useState({
@@ -31,6 +32,7 @@ const TradesList = () => {
   const [csvText, setCsvText] = useState('');
   const [showImportSection, setShowImportSection] = useState(false);
   const [activeImportTab, setActiveImportTab] = useState('paste');
+  const [expandedRow, setExpandedRow] = useState(null); // For mobile accordion
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -82,6 +84,7 @@ const TradesList = () => {
       transactionType: transaction.transactionType,
     });
     setIsFormOpen(true);
+    setExpandedRow(null); // Close mobile accordion when editing
   };
 
   const handleExportToCSV = () => {
@@ -151,11 +154,10 @@ const TradesList = () => {
           .filter((inv) => inv !== null);
 
         if (importedInvestments.length === 0) {
-          alert('No valid transactions were found in the CSV data. Expected format: Account,TransactionDate,TransactionType,Ticker,Shares,Price,TotalCost');
+          alert('No valid transactions were found in the CSV data.');
           return;
         }
 
-        console.log('Imported investments:', importedInvestments);
         importInvestments(importedInvestments);
         setCsvText('');
         setShowImportSection(false);
@@ -168,10 +170,7 @@ const TradesList = () => {
 
   const handleCSVImport = (e) => {
     const file = e.target.files[0];
-    if (!file) {
-      alert('Please select a CSV file to import.');
-      return;
-    }
+    if (!file) return;
 
     const reader = new FileReader();
     reader.onload = (event) => {
@@ -189,19 +188,13 @@ const TradesList = () => {
 
       const importedInvestments = rows.slice(1).map((row, index) => {
         const columns = row.split(',');
-        if (columns.length < 7) {
-          console.warn(`Skipping invalid row ${index + 2}: ${row}`);
-          return null;
-        }
+        if (columns.length < 7) return null;
 
         const shares = parseFloat(columns[4]);
         const price = parseFloat(columns[5]);
         const totalCost = parseFloat(columns[6]);
 
-        if (!columns[0] || !columns[3] || isNaN(shares) || isNaN(price)) {
-          console.warn(`Skipping invalid row ${index + 2}: ${row}`);
-          return null;
-        }
+        if (!columns[0] || !columns[3] || isNaN(shares) || isNaN(price)) return null;
 
         return {
           id: Date.now() + index,
@@ -216,27 +209,22 @@ const TradesList = () => {
       }).filter((inv) => inv !== null);
 
       if (importedInvestments.length === 0) {
-        alert('No valid transactions were found in the CSV file. Expected format: Account,TransactionDate,TransactionType,Ticker,Shares,Price,TotalCost');
+        alert('No valid transactions found in CSV.');
         return;
       }
 
-      console.log('Imported investments:', importedInvestments);
       importInvestments(importedInvestments);
       setShowImportSection(false);
-      alert(`Successfully imported ${importedInvestments.length} transactions.`);
+      alert(`Imported ${importedInvestments.length} transactions.`);
     };
 
-    reader.onerror = () => {
-      alert('Error reading the CSV file. Please try again.');
-    };
-
+    reader.onerror = () => alert('Error reading file.');
     reader.readAsText(file);
   };
 
   const handleClearAll = () => {
     if (window.confirm('Are you sure you want to clear all entries?')) {
       clearInvestments();
-      console.log('Cleared all investments.');
     }
   };
 
@@ -244,15 +232,24 @@ const TradesList = () => {
     setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc');
   };
 
+  const toggleRow = (id) => {
+    setExpandedRow(expandedRow === id ? null : id);
+  };
+
   return (
     <div className="trades-list">
       <div className="trades-header">
-        <h2>Investment Transactions</h2>
-        <nav className="trades-nav">
-          <Link to="/investments" className="nav-button">Back to Investments</Link>
-        </nav>
+        <div className="header-top">
+          <div className="header-content">
+            <h2>Investment Transactions</h2>
+            <Link to="/investments" className="back-button">
+              ← Back
+            </Link>
+          </div>
+        </div>
       </div>
-      <div className="action-buttons">
+
+      {/* <div className="action-buttons">
         <button onClick={() => setIsFormOpen(true)} className="action-button">
           {editingTransaction ? 'Edit Transaction' : 'Add a Transaction'}
         </button>
@@ -262,8 +259,46 @@ const TradesList = () => {
         <button onClick={handleExportToCSV} className="action-button export-button">
           Export to CSV
         </button>
-        <button onClick={handleClearAll} className="action-button clear-button">Clear All Entries</button>
+        <button onClick={handleClearAll} className="action-button clear-button">
+          Clear All Entries
+        </button>
+      </div> */}
+      {/* Floating Action Button + Menu */}
+      <div className="fab-container">
+        <button
+          className="fab-main"
+          onClick={() => setIsFormOpen(true)}
+          aria-label="Add transaction"
+        >
+          +
+        </button>
+
+        {/* Hidden menu - opens on hover/focus (desktop) or tap (mobile) */}
+        <div className="fab-menu">
+          <button
+            onClick={() => setShowImportSection(true)}
+            className="fab-item import-item"
+            title="Import transactions"
+          >
+            📥 Import
+          </button>
+          <button
+            onClick={handleExportToCSV}
+            className="fab-item export-item"
+            title="Export to CSV"
+          >
+            📤 Export
+          </button>
+          <button
+            onClick={handleClearAll}
+            className="fab-item clear-item"
+            title="Clear all entries"
+          >
+            🗑️ Clear All
+          </button>
+        </div>
       </div>
+      {/* Import Section */}
       {showImportSection && (
         <div className="import-section">
           <h3>Import Transactions</h3>
@@ -287,9 +322,8 @@ const TradesList = () => {
                 <textarea
                   value={csvText}
                   onChange={(e) => setCsvText(e.target.value)}
-                  placeholder="Paste your CSV data here (e.g., Account,TransactionDate,TransactionType,Ticker,Shares,Price,TotalCost)"
+                  placeholder="Paste CSV here (Account,TransactionDate,TransactionType,Ticker,Shares,Price,TotalCost)"
                   rows="5"
-                  cols="50"
                 />
                 <button className="action-button" onClick={handlePasteImport}>
                   Import Pasted CSV
@@ -298,21 +332,15 @@ const TradesList = () => {
             )}
             {activeImportTab === 'file' && (
               <div className="file-import">
-                <label htmlFor="csv-upload" className="file-input-label">
-                  Choose a CSV file:
-                </label>
-                <input
-                  id="csv-upload"
-                  type="file"
-                  accept=".csv"
-                  onChange={handleCSVImport}
-                />
+                <label>Choose a CSV file:</label>
+                <input type="file" accept=".csv" onChange={handleCSVImport} />
               </div>
             )}
           </div>
         </div>
       )}
 
+      {/* Add/Edit Form */}
       {isFormOpen && (
         <form onSubmit={handleSubmit} className="investment-form">
           <div className="form-group">
@@ -344,9 +372,17 @@ const TradesList = () => {
           </div>
           <div className="form-actions">
             <button type="submit" className="action-button">
-              {editingTransaction ? 'Update Transaction' : 'Add Transaction'}
+              {editingTransaction ? 'Update' : 'Add'} Transaction
             </button>
-            <button type="button" onClick={() => { setIsFormOpen(false); setEditingTransaction(null); setFormData({ account: '', ticker: '', shares: '', price: '', date: '', transactionType: 'BUY' }); }} className="action-button cancel-button">
+            <button
+              type="button"
+              onClick={() => {
+                setIsFormOpen(false);
+                setEditingTransaction(null);
+                setFormData({ account: '', ticker: '', shares: '', price: '', date: '', transactionType: 'BUY' });
+              }}
+              className="action-button cancel-button"
+            >
               Cancel
             </button>
           </div>
@@ -354,65 +390,140 @@ const TradesList = () => {
       )}
 
       <div className="filters">
-        <label>
-          Filter by Account:
-          <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
-            {accounts && accounts.length > 0 ? (
-              accounts.map((account, index) => (
-                <option key={index} value={account}>{account}</option>
-              ))
-            ) : (
-              <option value="All">All</option>
-            )}
-          </select>
-        </label>
-        <button className="action-button sort-button" onClick={handleSort}>
-          Sort by Date ({sortOrder === 'asc' ? 'Ascending' : 'Descending'})
-        </button>
+        <div className="filter-group">
+          <label>
+            Account:
+            <select value={filterAccount} onChange={(e) => setFilterAccount(e.target.value)}>
+              <option value="All">All Accounts</option>
+              {accounts?.map((account, i) => (
+                <option key={i} value={account}>{account}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+
+        <div className="filter-group">
+          <button className="sort-toggle-button" onClick={handleSort}>
+            <span className="sort-label">Date</span>
+            <span className="sort-direction">
+              {sortOrder === 'asc' ? '↑' : '↓'}
+            </span>
+          </button>
+        </div>
       </div>
 
+      {/* Transactions List */}
       {filteredInvestments.length > 0 ? (
-        <table className="trades-table">
-          <thead>
-            <tr>
-              <th>Account</th>
-              <th>Date</th>
-              <th>Transaction Type</th>
-              <th>Ticker</th>
-              <th>Shares</th>
-              <th>Price</th>
-              <th>Total Cost</th>
-              <th>Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredInvestments.map((transaction) => (
-              <tr key={transaction.id}>
-                <td>{transaction.account}</td>
-                <td>{transaction.date}</td>
-                <td>{transaction.transactionType}</td>
-                <td>{transaction.ticker}</td>
-                <td>{transaction.shares.toFixed(2)}</td>
-                <td>${transaction.price.toFixed(2)}</td>
-                <td>${transaction.totalCost ? transaction.totalCost.toFixed(2) : (transaction.shares * transaction.price).toFixed(2)}</td>
-                <td>
-                  <button
-                    onClick={() => handleEdit(transaction)}
-                    className="edit-button"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => deleteInvestment(transaction.id)}
-                    className="delete-button"
-                  >
-                    Delete
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+        <>
+          {/* Desktop Table - hidden on mobile */}
+          <div className="desktop-table">
+            <table className="trades-table">
+              <thead>
+                <tr>
+                  <th>Account</th>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Ticker</th>
+                  <th>Shares</th>
+                  <th>Price</th>
+                  <th>Total Cost</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {filteredInvestments.map((transaction) => (
+                  <tr key={transaction.id}>
+                    <td>{transaction.account}</td>
+                    <td>{transaction.date}</td>
+                    <td>{transaction.transactionType}</td>
+                    <td>{transaction.ticker}</td>
+                    <td>{transaction.shares.toFixed(2)}</td>
+                    <td>${transaction.price.toFixed(2)}</td>
+                    <td>
+                      ${transaction.totalCost
+                        ? transaction.totalCost.toFixed(2)
+                        : (transaction.shares * transaction.price).toFixed(2)}
+                    </td>
+                    <td>
+                      <button onClick={() => handleEdit(transaction)} className="edit-button">Edit</button>
+                      <button onClick={() => deleteInvestment(transaction.id)} className="delete-button">Delete</button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          {/* Mobile Accordion - Compact 2-line cards */}
+          <div className="mobile-accordion">
+            {filteredInvestments.map((transaction) => {
+              const total = transaction.totalCost || (transaction.shares * transaction.price);
+              const isExpanded = expandedRow === transaction.id;
+              const isBuy = transaction.transactionType === 'BUY';
+
+              return (
+                <div
+                  key={transaction.id}
+                  className={`accordion-item ${isExpanded ? 'expanded' : ''}`}
+                  onClick={() => toggleRow(transaction.id)}
+                >
+                  <div className="accordion-compact">
+                    {/* Line 1: Date + Account */}
+                    <div className="compact-line-1">
+                      <span className="transaction-date">{transaction.date}</span>
+                      <span className="transaction-account">{transaction.account}</span>
+                    </div>
+
+                    {/* Line 2: Ticker + Type + Shares@Price + Total */}
+                    <div className="compact-line-2">
+                      <div className="left-info">
+                        <strong className="ticker">{transaction.ticker}</strong>
+                        <span className={`transaction-type ${isBuy ? 'buy' : 'sell'}`}>
+                          {transaction.transactionType}
+                        </span>
+                        <span className="shares-price">
+                          {transaction.shares.toFixed(0)} shares @ ${transaction.price.toFixed(2)}
+                        </span>
+                      </div>
+                      <div className="right-info">
+                        <span className="total-amount">${total.toFixed(2)}</span>
+                        <span className="expand-icon">{isExpanded ? '−' : '+'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Expanded details */}
+                  {isExpanded && (
+                    <div className="accordion-body">
+                      <div><strong>Full Price:</strong> ${transaction.price.toFixed(2)} per share</div>
+                      <div><strong>Total Cost/Basis:</strong> ${total.toFixed(2)}</div>
+                      <div className="accordion-actions">
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEdit(transaction);
+                          }}
+                          className="edit-button"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            deleteInvestment(transaction.id);
+                          }}
+                          className="delete-button"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+</div>
+        </>
       ) : (
         <p>No transactions to display. Add a transaction or import a CSV file.</p>
       )}

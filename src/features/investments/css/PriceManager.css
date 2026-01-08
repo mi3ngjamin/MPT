@@ -1,249 +1,290 @@
 .price-manager {
+  padding: 1.5rem;
+  max-width: 1000px;
+  margin: 0 auto;
+  min-height: 100vh;
+}
+
+/* Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.page-header h2 {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.back-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px;
+  background-color: #f1f5f9;
+  color: #475569;
+  text-decoration: none;
+  font-weight: 500;
+  font-size: 1rem;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  transition: all 0.2s ease;
+}
+
+.back-button:hover {
+  background-color: #e2e8f0;
+  color: #1e293b;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+}
+
+/* Cards */
+.add-ticker-card,
+.price-list-card {
+  background: white;
+  border-radius: 16px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  padding: 24px;
+  margin-bottom: 2rem;
+}
+
+.add-ticker-card h3,
+.price-list-card h3 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.4rem;
+  color: #1e293b;
+  font-weight: 600;
+}
+
+/* Add Form */
+.add-ticker-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 1.5rem;
+  align-items: end;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.form-group input {
+  padding: 12px 16px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-group input:focus {
+  outline: none;
+  border-color: #008080;
+  box-shadow: 0 0 0 3px rgba(0, 128, 128, 0.1);
+}
+
+.add-button {
+  padding: 12px 24px;
+  background-color: #008080;
+  color: white;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.add-button:hover {
+  background-color: #006666;
+}
+
+/* Price Grid (Cards) */
+.price-grid {
+  display: grid;
+  gap: 12px;
+}
+
+.price-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  background: #f8fafc;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  transition: all 0.2s;
+}
+
+.price-item:hover {
+  background: #f1f5f9;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.price-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ticker {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #1e293b;
+}
+
+.price-value {
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #008080;
+}
+
+.edit-input {
+  padding: 8px 12px;
+  border: 1px solid #008080;
+  border-radius: 8px;
+  font-size: 1.1rem;
+  width: 120px;
+}
+
+.price-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.price-actions button {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.edit-btn {
+  background-color: #6366f1;
+  color: white;
+}
+
+.edit-btn:hover {
+  background-color: #4f46e5;
+}
+
+.delete-btn {
+  background-color: #ef4444;
+  color: white;
+}
+
+.delete-btn:hover {
+  background-color: #dc2626;
+}
+
+.save-btn {
+  background-color: #10b981;
+  color: white;
+}
+
+.save-btn:hover {
+  background-color: #059669;
+}
+
+.cancel-btn {
+  background-color: #6b7280;
+  color: white;
+}
+
+.cancel-btn:hover {
+  background-color: #4b5563;
+}
+
+.empty-message {
+  text-align: center;
+  padding: 3rem;
+  color: #64748b;
+  font-size: 1.1rem;
+}
+
+/* FAB */
+.fab-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 100;
+}
+
+.fab-main {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background-color: #008080;
+  color: white;
+  font-size: 32px;
+  border: none;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+}
+
+.fab-main:hover:not(:disabled) {
+  background-color: #006666;
+  transform: scale(1.1);
+}
+
+.fab-main:disabled {
+  opacity: 0.6;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+  .price-manager {
     padding: 1rem;
   }
-  
-  /* Header Section */
-  .header-section {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1.5rem;
+
+  .page-header h2 {
+    font-size: 1.6rem;
   }
-  
-  .header-section h2 {
-    font-size: 1.5rem;
-    color: #34495e;
-  }
-  
-  .price-nav {
-    display: flex;
-    gap: 0.5rem;
-    padding: 0.5rem 1rem;
-    background-color: #eef2f7; /* Softer gray */
-    border-radius: 10px;
-    margin-bottom: 24px;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
-  }
-  
-  .nav-button {
-    padding: 0.5rem 1rem;
-    background-color: #008080;
-    color: white;
-    text-decoration: none;
-    border: none; /* Added for button */
-    border-radius: 4px;
-    font-size: 0.9rem;
-    cursor: pointer; /* Added for button */
-  }
-  
-  .nav-button:hover {
-    background-color: #006666;
-  }
-  
-  .nav-button:disabled {
-    background-color: #cccccc; /* Matches InvestmentTracker */
-    cursor: not-allowed; /* Matches InvestmentTracker */
-  }
-  
-  /* Add Ticker Section */
-  .add-ticker-section {
-    margin-bottom: 2rem;
-  }
-  
-  .add-ticker-section h3 {
-    font-size: 1.25rem;
-    margin-bottom: 0.75rem;
-    color: #34495e;
-  }
-  
+
   .add-ticker-form {
-    display: flex;
-    gap: 1rem;
-    flex-wrap: wrap;
+    grid-template-columns: 1fr;
   }
-  
-  .form-group {
-    display: flex;
+
+  .price-item {
     flex-direction: column;
-    gap: 0.25rem;
+    align-items: flex-start;
+    gap: 12px;
   }
-  
-  .form-group label {
-    font-size: 0.9rem;
-    color: #34495e;
-  }
-  
-  .form-group input {
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
-  }
-  
-  .action-button {
-    padding: 0.5rem 1rem;
-    background-color: #008080;
-    color: white;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    font-size: 0.9rem;
-  }
-  
-  .action-button:hover {
-    background-color: #006666;
-  }
-  
-  /* Price List Section */
-  .price-list-section {
-    margin-bottom: 1.5rem;
-  }
-  
-  .price-list-section h3 {
-    font-size: 1.25rem;
-    margin-bottom: 0.75rem;
-    color: #34495e;
-  }
-  
-  table {
+
+  .price-actions {
     width: 100%;
-    border-collapse: collapse;
-    margin-bottom: 1rem;
+    justify-content: flex-end;
   }
-  
-  th, td {
-    padding: 0.5rem;
-    border: 1px solid #ddd;
-    text-align: left;
-    font-size: 0.9rem;
+
+  .fab-main {
+    width: 60px;
+    height: 60px;
+    font-size: 28px;
   }
-  
-  th {
-    background-color: #f8f9fa;
+}
+
+@media (max-width: 480px) {
+  .fab-main {
+    width: 56px;
+    height: 56px;
+    font-size: 26px;
   }
-  
-  td input {
-    padding: 0.3rem;
-    border: 1px solid #ddd;
-    border-radius: 4px;
-    font-size: 0.9rem;
-    width: 100px;
-  }
-  
-  .edit-button {
-    background-color: #17a2b8;
-  }
-  
-  .edit-button:hover {
-    background-color: #138496;
-  }
-  
-  .delete-button {
-    background-color: #dc3545;
-  }
-  
-  .delete-button:hover {
-    background-color: #c82333;
-  }
-  
-  .save-button {
-    background-color: #28a745;
-  }
-  
-  .save-button:hover {
-    background-color: #218838;
-  }
-  
-  .cancel-button {
-    background-color: #6c757d;
-  }
-  
-  .cancel-button:hover {
-    background-color: #5a6268;
-  }
-  
-  /* Responsive Adjustments */
-  @media (max-width: 1024px) {
-    .price-manager {
-      padding: 0.75rem;
-    }
-  
-    .header-section {
-      flex-direction: column;
-      gap: 0.5rem;
-    }
-  
-    .header-section h2 {
-      font-size: 1.3rem;
-    }
-  
-    .nav-button {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.85rem;
-    }
-  
-    th, td {
-      font-size: 0.85rem;
-    }
-  }
-  
-  @media (max-width: 768px) {
-    .header-section {
-      align-items: center;
-    }
-  
-    .price-nav {
-      justify-content: center;
-      width: 100%;
-    }
-  
-    .add-ticker-form {
-      flex-direction: column;
-    }
-  
-    .form-group input {
-      font-size: 0.85rem;
-    }
-  
-    .action-button {
-      padding: 0.4rem 0.8rem;
-      font-size: 0.85rem;
-    }
-  
-    th, td {
-      padding: 0.4rem;
-      font-size: 0.8rem;
-    }
-  
-    td input {
-      width: 80px;
-    }
-  }
-  
-  @media (max-width: 480px) {
-    .price-manager {
-      padding: 0.5rem;
-    }
-  
-    .header-section h2 {
-      font-size: 1.1rem;
-    }
-  
-    .nav-button {
-      padding: 0.3rem 0.6rem;
-      font-size: 0.75rem;
-    }
-  
-    .add-ticker-section h3,
-    .price-list-section h3 {
-      font-size: 1.1rem;
-    }
-  
-    th, td {
-      font-size: 0.75rem;
-    }
-  
-    td input {
-      width: 60px;
-    }
-  }
+}
