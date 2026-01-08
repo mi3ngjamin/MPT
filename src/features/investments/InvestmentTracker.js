@@ -54,6 +54,19 @@ const InvestmentTracker = () => {
     return acc;
   }, {});
 
+  const [expandedAccounts, setExpandedAccounts] = useState(() => new Set(Object.keys(positionsByAccount)));
+  
+  const toggleAccount = (account) => {
+  setExpandedAccounts((prev) => {
+    const newSet = new Set(prev);
+    if (newSet.has(account)) {
+      newSet.delete(account);
+    } else {
+      newSet.add(account);
+    }
+    return newSet;
+  });
+};
   const totalMarketValue = portfolioPositions.reduce((sum, pos) => {
     const currentPrice = livePrices[pos.ticker] || 0;
     return sum + pos.shares * currentPrice;
@@ -196,6 +209,7 @@ const InvestmentTracker = () => {
     <div className="investment-tracker">
       <div className="header-section">
         <div className="action-buttons">
+        <Link to="/prices" className="view-trades-button">Manage Prices</Link>
           <button onClick={fetchLivePrices} className="button" disabled={loading}>
             {loading ? 'Loading...' : 'Refresh Live Prices'}
           </button>
@@ -207,8 +221,16 @@ const InvestmentTracker = () => {
         <>
           {Object.entries(positionsByAccount).map(([account, accountPositions]) => (
             <div key={account} className="account-section">
-              <h3>{account}</h3>
-              {renderTable(accountPositions, account)}
+              <h3 
+                onClick={() => toggleAccount(account)} 
+                style={{ cursor: 'pointer', display: 'flex', alignItems: 'center' }}
+              >
+                {account}
+                <span style={{ marginLeft: '10px' }}>
+                  {expandedAccounts.has(account) ? '[-]' : '[+]'}
+                </span>
+              </h3>
+              {expandedAccounts.has(account) && renderTable(accountPositions, account)}
             </div>
           ))}
           <div className="summary-section">
