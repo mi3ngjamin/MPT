@@ -1,13 +1,129 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root,
+.dark {
+  --canvas: 8 12 22;
+  --panel: 16 24 42;
+  --panel-2: 22 33 56;
+  --ink: 236 242 252;
+  --muted: 154 168 190;
+  --line: 46 62 92;
+  --accent: 46 230 199;
+  --accent-ink: 6 32 30;
+  --gain: 52 211 153;
+  --loss: 251 113 133;
+  --warn: 245 193 108;
+  color-scheme: dark;
+}
+
+.light {
+  --canvas: 244 247 251;
+  --panel: 255 255 255;
+  --panel-2: 241 245 249;
+  --ink: 15 23 42;
+  --muted: 71 85 105;
+  --line: 226 232 240;
+  --accent: 13 122 114;
+  --accent-ink: 255 255 255;
+  --gain: 4 120 87;
+  --loss: 190 18 60;
+  --warn: 146 84 7;
+  color-scheme: light;
+}
+
+html,
+body,
+#root {
+  min-height: 100%;
+}
+
 body {
-    margin: 0;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-      'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-      sans-serif;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+  margin: 0;
+  background:
+    radial-gradient(1000px 420px at 0% -10%, rgb(var(--accent) / 0.08), transparent 55%),
+    rgb(var(--canvas));
+  color: rgb(var(--ink));
+  font-family: 'Inter Variable', Inter, system-ui, sans-serif;
+}
+
+.num {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
+
+::selection {
+  background: rgb(var(--accent) / 0.28);
+}
+
+:focus-visible {
+  outline: 2px solid rgb(var(--accent));
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation: none !important;
+    transition: none !important;
   }
-  
-  code {
-    font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-      monospace;
+}
+
+@layer components {
+  .page {
+    animation: rise 280ms ease;
   }
+
+  .card {
+    @apply rounded-2xl border border-line bg-panel shadow-card;
+  }
+
+  .btn {
+    @apply inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-medium transition;
+  }
+
+  .btn-primary {
+    @apply btn bg-accent text-accent-ink hover:brightness-110;
+  }
+
+  .btn-ghost {
+    @apply btn border border-line bg-panel-2/60 text-ink hover:border-accent/50;
+  }
+
+  .btn-danger {
+    @apply btn border border-loss/30 bg-loss/10 text-loss hover:bg-loss/15;
+  }
+
+  .field {
+    @apply w-full rounded-xl border border-line bg-canvas/50 px-3 py-2 text-sm text-ink outline-none transition placeholder:text-muted/70 focus:border-accent;
+  }
+
+  .label {
+    @apply mb-1 block text-xs font-medium text-muted;
+  }
+
+  .chip {
+    @apply inline-flex items-center rounded-full border border-line px-2.5 py-1 text-xs font-medium text-muted;
+  }
+
+  .nav-link {
+    @apply flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-muted transition hover:bg-panel-2 hover:text-ink;
+  }
+
+  .nav-link-active {
+    @apply bg-accent/15 text-ink;
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}

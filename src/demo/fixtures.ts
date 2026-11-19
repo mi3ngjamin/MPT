@@ -1,0 +1,241 @@
+import { addDays, todayLocal } from '../domain/dates';
+import type { Activity, NetWorthSnapshot, Snapshot } from '../domain/types';
+
+const fresh = new Date().toISOString();
+const stale = new Date(Date.now() - 10 * 86_400_000).toISOString();
+
+function activity(partial: Partial<Activity> & Pick<Activity, 'id' | 'accountId' | 'date' | 'action'>): Activity {
+  return {
+    transferAccountId: null,
+    assetType: 'stock_etf',
+    symbol: null,
+    quantity: null,
+    price: null,
+    fees: 0,
+    amount: null,
+    multiplier: null,
+    ratio: null,
+    deltaQuantity: null,
+    deltaCostBasis: null,
+    deltaCash: null,
+    underlying: null,
+    expiry: null,
+    strike: null,
+    optionRight: null,
+    note: null,
+    createdAt: `${partial.date}T15:00:00.000Z`,
+    ...partial,
+  };
+}
+
+/** Sample books for screenshots and the ?demo=1 preview. Not real finances. */
+export function demoSnapshot(): Snapshot {
+  return {
+    portfolios: [
+      { id: 'p-brokerage', name: 'Brokerage', includeInNetWorth: true, sortOrder: 0 },
+      { id: 'p-retire', name: 'Retirement', includeInNetWorth: true, sortOrder: 1 },
+      { id: 'p-family', name: 'Family', includeInNetWorth: false, sortOrder: 2 },
+    ],
+    accounts: [
+      { id: 'a-pcra', portfolioId: 'p-brokerage', name: 'PCRA (SCHWAB)', accountType: 'brokerage', taxTreatment: 'taxable', sortOrder: 0 },
+      { id: 'a-roth', portfolioId: 'p-retire', name: 'Roth IRA', accountType: 'retirement', taxTreatment: 'tax_free', sortOrder: 0 },
+      { id: 'a-family', portfolioId: 'p-family', name: 'Family brokerage', accountType: 'brokerage', taxTreatment: 'taxable', sortOrder: 0 },
+    ],
+    activities: [
+      activity({ id: 'c1', accountId: 'a-pcra', date: '2024-01-02', action: 'opening_cash', assetType: 'cash', amount: 30000, note: 'Cutover cash' }),
+      activity({ id: 'b1', accountId: 'a-pcra', date: '2024-03-01', action: 'buy', symbol: 'VTI', quantity: 80, price: 250 }),
+      activity({ id: 'b2', accountId: 'a-pcra', date: '2024-03-20', action: 'buy', symbol: 'AAPL', quantity: 20, price: 180 }),
+      activity({ id: 'b3', accountId: 'a-pcra', date: '2024-04-02', action: 'buy', symbol: 'VXUS', quantity: 60, price: 62 }),
+      activity({
+        id: 'o1',
+        accountId: 'a-pcra',
+        date: '2025-06-18',
+        action: 'buy_to_open',
+        assetType: 'option',
+        symbol: 'AAPL261218C00200000',
+        quantity: 1,
+        price: 6.5,
+        fees: 0.65,
+        multiplier: 100,
+        underlying: 'AAPL',
+        expiry: '2026-12-18',
+        strike: 200,
+        optionRight: 'C',
+      }),
+      activity({ id: 's1', accountId: 'a-pcra', date: '2025-08-12', action: 'sell', symbol: 'AAPL', quantity: 5, price: 228 }),
+      activity({ id: 'd1', accountId: 'a-pcra', date: '2025-09-15', action: 'dividend', assetType: 'cash', symbol: 'VTI', amount: 96.4 }),
+      activity({ id: 'n1', accountId: 'a-pcra', date: '2026-01-06', action: 'contribution', assetType: 'cash', amount: 5000 }),
+      activity({ id: 'r0', accountId: 'a-roth', date: '2024-01-02', action: 'opening_cash', assetType: 'cash', amount: 20000 }),
+      activity({ id: 'r1', accountId: 'a-roth', date: '2024-03-01', action: 'buy', symbol: 'VTI', quantity: 40, price: 240 }),
+      activity({ id: 'r2', accountId: 'a-roth', date: '2024-03-01', action: 'buy', symbol: 'BND', quantity: 50, price: 76, createdAt: '2024-03-01T16:00:00.000Z' }),
+      activity({ id: 'r3', accountId: 'a-roth', date: '2025-01-15', action: 'contribution', assetType: 'cash', amount: 2000 }),
+      activity({
+        id: 'f1',
+        accountId: 'a-family',
+        date: '2024-01-02',
+        action: 'opening_position',
+        symbol: 'VTI',
+        quantity: 10,
+        amount: 2200,
+        price: 220,
+        note: 'Cutover',
+      }),
+    ],
+    quotes: [
+      { symbol: 'VTI', price: 295.4, previousClose: 293.1, source: 'finnhub', fetchedAt: fresh },
+      { symbol: 'AAPL', price: 228.5, previousClose: 226, source: 'finnhub', fetchedAt: fresh },
+      { symbol: 'VXUS', price: 68.2, previousClose: 67.9, source: 'finnhub', fetchedAt: stale },
+      { symbol: 'BND', price: 74.1, previousClose: 74.4, source: 'finnhub', fetchedAt: fresh },
+      { symbol: 'AAPL261218C00200000', price: 8.4, previousClose: null, source: 'manual', fetchedAt: fresh },
+    ],
+    whatIfs: [{ symbol: 'VTI', price: 270 }],
+    scenarios: [{ id: 'sc-pullback', name: 'Mild pullback' }],
+    scenarioPrices: [
+      { scenarioId: 'sc-pullback', symbol: 'VTI', price: 260 },
+      { scenarioId: 'sc-pullback', symbol: 'AAPL', price: 190 },
+    ],
+    modeled: [{ id: 'mb-vti', accountId: 'a-pcra', symbol: 'VTI', amount: 2000, amountSource: 'custom' }],
+    checkingAccounts: [
+      { id: 'c-ops', name: 'Operating', openingBalance: 4800, openingDate: '2026-10-01', lowBalanceFloor: 1500, sortOrder: 0 },
+      { id: 'c-res', name: 'Reserve', openingBalance: 8000, openingDate: '2026-10-01', lowBalanceFloor: 2000, sortOrder: 1 },
+    ],
+    checkingTxns: [
+      txn('t1', 'c-ops', '2026-10-01', 'Rent', -1800, 'Home', true, 'bill-rent'),
+      txn('t2', 'c-ops', '2026-10-09', 'Paycheck', 3200, 'Pay', true, 'bill-pay'),
+      txn('t3', 'c-ops', '2026-10-23', 'Paycheck', 3200, 'Pay', true, 'bill-pay'),
+      txn('t4', 'c-ops', '2026-10-28', 'Insurance', -4200, 'Home', true, 'bill-ins'),
+      txn('t5', 'c-ops', '2026-11-01', 'Rent', -1800, 'Home', true, 'bill-rent'),
+      txn('t6', 'c-ops', '2026-11-06', 'Paycheck', 3200, 'Pay', true, 'bill-pay'),
+      txn('t7', 'c-ops', '2026-11-12', 'Market', -126.18, 'Groceries', true, null),
+      txn('t8', 'c-ops', '2026-11-14', 'Fuel', -54.3, 'Transport', false, null),
+      txn('t9', 'c-ops', '2026-11-22', 'Transfer to reserve', -9000, 'Transfer', false, null),
+      txn('t10', 'c-res', '2026-10-15', 'Interest', 12.4, 'Interest', true, null),
+      txn('t11', 'c-res', '2026-11-22', 'Transfer from operating', 9000, 'Transfer', false, null),
+    ],
+    recurring: [
+      {
+        id: 'bill-rent',
+        accountId: 'c-ops',
+        name: 'Rent',
+        kind: 'bill',
+        amount: 1800,
+        cadence: 'monthly',
+        dayOfMonth: 1,
+        intervalWeeks: null,
+        anchorDate: null,
+        monthOfYear: null,
+        autopay: true,
+        active: true,
+        category: 'Home',
+      },
+      {
+        id: 'bill-ins',
+        accountId: 'c-ops',
+        name: 'Insurance',
+        kind: 'bill',
+        amount: 4200,
+        cadence: 'monthly',
+        dayOfMonth: 28,
+        intervalWeeks: null,
+        anchorDate: null,
+        monthOfYear: null,
+        autopay: true,
+        active: true,
+        category: 'Home',
+      },
+      {
+        id: 'bill-pay',
+        accountId: 'c-ops',
+        name: 'Paycheck',
+        kind: 'income',
+        amount: 3200,
+        cadence: 'weekly',
+        dayOfMonth: null,
+        intervalWeeks: 2,
+        anchorDate: '2026-10-09',
+        monthOfYear: null,
+        autopay: false,
+        active: true,
+        category: 'Pay',
+      },
+    ],
+    occurrences: [
+      { id: 'o-r1', recurringItemId: 'bill-rent', occurrenceDate: '2026-10-01', status: 'paid', transactionId: 't1' },
+      { id: 'o-r2', recurringItemId: 'bill-rent', occurrenceDate: '2026-11-01', status: 'paid', transactionId: 't5' },
+      { id: 'o-i1', recurringItemId: 'bill-ins', occurrenceDate: '2026-10-28', status: 'paid', transactionId: 't4' },
+      { id: 'o-p1', recurringItemId: 'bill-pay', occurrenceDate: '2026-10-09', status: 'paid', transactionId: 't2' },
+      { id: 'o-p2', recurringItemId: 'bill-pay', occurrenceDate: '2026-10-23', status: 'paid', transactionId: 't3' },
+      { id: 'o-p3', recurringItemId: 'bill-pay', occurrenceDate: '2026-11-06', status: 'paid', transactionId: 't6' },
+    ],
+    liabilities: [
+      {
+        id: 'l-auto',
+        name: 'Auto loan',
+        liabilityType: 'loan',
+        balance: 8640,
+        asOf: '2026-11-01',
+        includeInNetWorth: true,
+        unresolved: false,
+        note: null,
+      },
+      {
+        id: 'l-tax',
+        name: 'Estimated tax',
+        liabilityType: 'tax',
+        balance: 4200,
+        asOf: '2026-11-15',
+        includeInNetWorth: true,
+        unresolved: true,
+        note: 'Not final',
+      },
+    ],
+    snapshots: demoHistory(),
+    preferences: {
+      priceMode: 'live',
+      theme: 'dark',
+      legacyImportStatus: 'dismissed',
+      projectionDays: 90,
+      activeScenarioId: null,
+    },
+  };
+}
+
+function demoHistory(): NetWorthSnapshot[] {
+  const today = todayLocal();
+  const points = [64200, 65840, 67110, 68450, 69320, 69880];
+  return points.map((netWorth, index) => ({
+    id: `snap-${index}`,
+    snapshotDate: addDays(today, index - points.length),
+    netWorth,
+    investedValue: 46000,
+    brokerageCash: 8200,
+    checkingCash: 14400,
+    liabilities: 8640,
+    unrealizedPL: 6800,
+    realizedPL: 240,
+    note: null,
+  }));
+}
+
+function txn(
+  id: string,
+  accountId: string,
+  date: string,
+  description: string,
+  amount: number,
+  category: string,
+  cleared: boolean,
+  recurringItemId: string | null,
+) {
+  return {
+    id,
+    accountId,
+    date,
+    description,
+    amount,
+    category,
+    cleared,
+    recurringItemId,
+    createdAt: `${date}T12:00:00.000Z`,
+  };
+}
