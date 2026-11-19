@@ -5,6 +5,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -15,18 +18,27 @@ jobs:
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '18'
+          node-version: '20'
+          cache: npm
 
-      - name: Install Dependencies
-        run: npm install
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Test
+        run: npm test
 
       - name: Build
         run: npm run build
         env:
-          REACT_APP_FINNHUB_API_KEY: ${{ secrets.REACT_APP_FINNHUB_API_KEY }}
+          VITE_FINNHUB_API_KEY: ${{ secrets.REACT_APP_FINNHUB_API_KEY }}
+          VITE_SUPABASE_URL: https://sqaazuqkagskafptaion.supabase.co
+          VITE_SUPABASE_PUBLISHABLE_KEY: sb_publishable_updB4Vik6V9NUUqZdVw2Iw_qR1dw_Cc
 
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@v4
         with:
-          folder: build
+          folder: dist
           branch: gh-pages

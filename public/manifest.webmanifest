@@ -1,0 +1,9 @@
+{
+  "name": "MPT",
+  "short_name": "MPT",
+  "start_url": "/MPT/",
+  "display": "standalone",
+  "background_color": "#080c16",
+  "theme_color": "#080c16",
+  "icons": [{ "src": "favicon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
