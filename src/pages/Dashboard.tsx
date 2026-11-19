@@ -86,8 +86,8 @@ export default function Dashboard() {
         <Stat
           label="Cash"
           value={moneyTight(books.liquidCash)}
-          title={`Brokerage ${money(books.brokerageCash)}. Bank and savings ${money(books.otherCash)}. Checking ${money(books.netWorth.checking)}.`}
-          hint={`Brokerage ${moneyTight(books.brokerageCash)} · Bank & savings ${moneyTight(books.otherCash)} · Checking ${moneyTight(books.netWorth.checking)}`}
+          title={`Investment accounts ${money(books.brokerageCash)}. Bank and savings ${money(books.otherCash)}. Checking ${money(books.netWorth.checking)}.`}
+          hint={`Investment accounts ${moneyTight(books.brokerageCash)} · Bank & savings ${moneyTight(books.otherCash)} · Checking ${moneyTight(books.netWorth.checking)}`}
         />
         <Stat label="Unrealized" value={moneyTight(books.unrealized, true)} tone={plClass(books.unrealized)} />
         <Stat label="Realized" value={moneyTight(books.realized, true)} tone={plClass(books.realized)} />
