@@ -13,6 +13,7 @@ import { todayLocal } from '../domain/dates';
 import { createId } from '../domain/ids';
 import { hasLegacyData, planLegacyImport, type LegacyStorage } from '../domain/legacy';
 import { isUsMarketOpen, quotesNeedRefresh, QUOTE_POLL_MS, stockSymbols } from '../domain/market';
+import { readUnsupportedSymbols, rememberUnsupportedSymbols } from '../lib/unsupportedSymbols';
 import { r8 } from '../domain/round';
 import {
   type Account,
@@ -44,6 +45,7 @@ interface FinanceValue {
   books: Books;
   legacyAvailable: boolean;
   refreshPrices: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
+  unsupportedSymbols: string[];
   setPriceMode: (mode: Preferences['priceMode']) => Promise<void>;
   saveTheme: (theme: Preferences['theme']) => Promise<void>;
   setProjectionDays: (days: number) => Promise<void>;
@@ -86,6 +88,8 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
   const [loading, setLoading] = useState(!demo);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [unsupportedSymbols, setUnsupportedSymbols] = useState<string[]>(() => readUnsupportedSymbols());
+  const rateLimitedUntil = useRef(0);
   const snapshotRef = useRef(snapshot);
   const refreshRef = useRef<(options?: { silent?: boolean; force?: boolean }) => Promise<void>>(async () => undefined);
   const refreshing = useRef(false);
@@ -160,12 +164,14 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
   const refreshQuotes = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
     const current = snapshotRef.current;
     if (!current) return;
-    const symbols = stockSymbols(current.activities);
+    const blocked = new Set(readUnsupportedSymbols());
+    const symbols = stockSymbols(current.activities).filter((symbol) => !blocked.has(symbol));
     const silent = options?.silent === true;
     if (!symbols.length) {
-      if (!silent) setNotice('No stock symbols to refresh.');
+      if (!silent && stockSymbols(current.activities).length === 0) setNotice('No stock symbols to refresh.');
       return;
     }
+    if (!options?.force && Date.now() < rateLimitedUntil.current) return;
     if (!options?.force && !quotesNeedRefresh(current.quotes, symbols)) return;
     if (refreshing.current) return;
     refreshing.current = true;
@@ -182,17 +188,29 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
         if (!silent) setNotice('Sample prices marked fresh.');
         return;
       }
-      const result = await db.fetchFinnhub(symbols);
-      for (const quote of result.quotes) await db.saveQuote(quote);
-      setSnapshot(await db.loadSnapshot());
-      if (!silent) {
-        setNotice(
-          result.missing.length
-            ? `Updated ${result.quotes.length}. No quote for ${result.missing.join(', ')}.`
-            : `Updated ${result.quotes.length} quotes.`,
-        );
-      }
-    } catch (err) {
+        const result = await db.fetchFinnhub(symbols, { onQuote: (quote) => db.saveQuote(quote) });
+        if (result.unsupported.length) {
+          rememberUnsupportedSymbols(result.unsupported);
+          setUnsupportedSymbols(readUnsupportedSymbols());
+        }
+        if (result.quotes.length || result.unsupported.length) setSnapshot(await db.loadSnapshot());
+        if (result.stopped === 'rate_limit') {
+          rateLimitedUntil.current = Date.now() + 60_000;
+          if (!silent) setNotice(`Finnhub rate limit. Saved ${result.quotes.length} quotes and paused for a minute.`);
+          return;
+        }
+        if (result.stopped === 'unauthorized') {
+          if (!silent) setError('Finnhub rejected the API key.');
+          return;
+        }
+        if (!silent) {
+          setNotice(
+            result.missing.length
+              ? `Updated ${result.quotes.length}. No quote for ${result.missing.join(', ')}.`
+              : `Updated ${result.quotes.length} quotes.`,
+          );
+        }
+      } catch (err) {
       if (!silent) setError(text(err));
     } finally {
       refreshing.current = false;
@@ -266,6 +284,7 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
     snapshot,
     books,
     legacyAvailable,
+    unsupportedSymbols,
     refreshPrices: refreshQuotes,
     setPriceMode: (mode) =>
       commit(

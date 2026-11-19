@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useFinance } from '../context/FinanceContext';
 import type { AccountView, HoldingView } from '../domain/assemble';
 import { modelBuyMore } from '../domain/modeler';
@@ -8,6 +9,8 @@ import { money, moneyTight, pct, plClass, price, qty, relativeTime } from '../li
 
 export default function Investments() {
   const { books, snapshot, setWhatIf, saveScenario, applyScenario, saveManualPrice } = useFinance();
+  const [params] = useSearchParams();
+  const manualSymbol = params.get('manual');
   const [portfolioId, setPortfolioId] = useState('all');
   const portfolios = portfolioId === 'all' ? books.portfolios : books.portfolios.filter((row) => row.portfolio.id === portfolioId);
   const largestAccountId = useMemo(() => {
@@ -181,7 +184,7 @@ export default function Investments() {
         </ul>
       </section>
 
-      <ManualPriceForm symbols={symbols} onSave={saveManualPrice} />
+      <ManualPriceForm key={manualSymbol ?? 'manual'} symbols={symbols} initialSymbol={manualSymbol} onSave={saveManualPrice} />
     </div>
   );
 }
@@ -246,7 +249,12 @@ function HoldingRow({
   portfolioCash: number;
   portfolioInvested: number;
 }) {
-  const { snapshot, saveModeled } = useFinance();
+  const { snapshot, saveModeled, unsupportedSymbols } = useFinance();
+  const noLiveFeed =
+    unsupportedSymbols.includes(holding.symbol) &&
+    holding.priceSource !== 'manual' &&
+    holding.priceSource !== 'live' &&
+    holding.priceSource !== 'what_if';
   const saved = snapshot.modeled.find((row) => row.accountId === holding.accountId && row.symbol === holding.symbol);
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState(saved?.amountSource === 'custom' ? String(saved.amount ?? '') : '');
@@ -283,7 +291,14 @@ function HoldingRow({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted">
-        {price(holding.price)} · {priceCaption(holding)}
+        {price(holding.price)} ·{' '}
+        {noLiveFeed ? (
+          <Link className="text-accent underline" to={`/investments?manual=${encodeURIComponent(holding.symbol)}`}>
+            no live feed: set a manual price
+          </Link>
+        ) : (
+          priceCaption(holding)
+        )}
         {holding.oversold ? ' · oversold' : ''}
       </p>
       <button type="button" className="mt-2 text-xs font-medium text-accent" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -358,11 +373,24 @@ function HoldingRow({
   );
 }
 
-function ManualPriceForm({ symbols, onSave }: { symbols: string[]; onSave: (symbol: string, price: number) => Promise<void> }) {
-  const [symbol, setSymbol] = useState(symbols[0] ?? '');
+function ManualPriceForm({
+  symbols,
+  initialSymbol,
+  onSave,
+}: {
+  symbols: string[];
+  initialSymbol: string | null;
+  onSave: (symbol: string, price: number) => Promise<void>;
+}) {
+  const [symbol, setSymbol] = useState(initialSymbol ?? symbols[0] ?? '');
   const [value, setValue] = useState('');
+  useEffect(() => {
+    if (!initialSymbol) return;
+    document.getElementById('manual-price')?.scrollIntoView({ block: 'center' });
+  }, [initialSymbol]);
   return (
     <form
+      id="manual-price"
       className="card flex flex-wrap items-end gap-3 p-5"
       onSubmit={(event) => {
         event.preventDefault();
