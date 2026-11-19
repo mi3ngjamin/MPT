@@ -130,10 +130,11 @@ export interface Books {
   dayChange: number | null;
   invested: number;
   investedPartial: boolean;
+  /** Cash in net-worth investment accounts: portfolio cash minus type-other bank and savings. */
   brokerageCash: number;
   /** Cash in net-worth accounts whose type is other (bank and savings). */
   otherCash: number;
-  /** Brokerage cash + bank/savings cash + checking. */
+  /** Investment-account cash + bank/savings cash + checking. */
   liquidCash: number;
   portfolioCash: number;
   realized: number;
@@ -294,16 +295,12 @@ export function assembleBooks(input: {
   const invested = r8(included.reduce((sum, portfolio) => sum + portfolio.invested, 0));
   const investedPartial = included.some((portfolio) => portfolio.investedPartial);
   const portfolioCash = r8(included.reduce((sum, portfolio) => sum + portfolio.cash, 0));
-  const brokerageCash = r8(
-    accounts
-      .filter((account) => account.portfolio.includeInNetWorth && account.account.accountType === 'brokerage')
-      .reduce((sum, account) => sum + account.cash, 0),
-  );
   const otherCash = r8(
     accounts
       .filter((account) => account.portfolio.includeInNetWorth && account.account.accountType === 'other')
       .reduce((sum, account) => sum + account.cash, 0),
   );
+  const brokerageCash = r8(portfolioCash - otherCash);
   const realized = r8(included.reduce((sum, portfolio) => sum + portfolio.realized, 0));
   const dayValues = included.flatMap((portfolio) => (portfolio.dayChange == null ? [] : [portfolio.dayChange]));
   const unrealized = included.some((portfolio) => portfolio.unrealized != null)

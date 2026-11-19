@@ -56,6 +56,45 @@ describe('live-data polish', () => {
     expect(books.accounts.map((account) => account.account.name).sort()).toEqual(['Brokerage', 'Savings']);
   });
 
+  it('counts IRA and Roth cash with investment accounts, not only brokerage', () => {
+    const books = assembleBooks({
+      portfolios: [
+        { id: 'p', name: 'Mine', includeInNetWorth: true, sortOrder: 0 },
+        { id: 'family', name: 'Family', includeInNetWorth: false, sortOrder: 1 },
+      ],
+      accounts: [
+        { id: 'brok', portfolioId: 'p', name: 'Brokerage', accountType: 'brokerage', taxTreatment: 'taxable', sortOrder: 0 },
+        { id: 'ira', portfolioId: 'p', name: 'Traditional IRA', accountType: 'retirement', taxTreatment: 'tax_deferred', sortOrder: 1 },
+        { id: 'roth', portfolioId: 'p', name: 'Roth IRA', accountType: 'retirement', taxTreatment: 'tax_free', sortOrder: 2 },
+        { id: 'bank', portfolioId: 'p', name: 'Savings', accountType: 'other', taxTreatment: 'taxable', sortOrder: 3 },
+        { id: 'fam', portfolioId: 'family', name: 'Family IRA', accountType: 'retirement', taxTreatment: 'tax_deferred', sortOrder: 0 },
+      ],
+      activities: [
+        activity({ id: '1', accountId: 'brok', date: '2024-01-01', action: 'opening_cash', assetType: 'cash', amount: 0.75 }),
+        activity({ id: '2', accountId: 'ira', date: '2024-01-01', action: 'opening_cash', assetType: 'cash', amount: 224000 }),
+        activity({ id: '3', accountId: 'roth', date: '2024-01-01', action: 'opening_cash', assetType: 'cash', amount: 1500 }),
+        activity({ id: '4', accountId: 'bank', date: '2024-01-01', action: 'opening_cash', assetType: 'cash', amount: 234000 }),
+        activity({ id: '5', accountId: 'fam', date: '2024-01-01', action: 'opening_cash', assetType: 'cash', amount: 99999 }),
+      ],
+      quotes: [],
+      whatIfs: [],
+      mode: 'live',
+      liabilities: [],
+      checkingAccounts: [],
+      checkingTxns: [],
+      recurring: [],
+      occurrences: [],
+      today: '2026-11-19',
+    });
+    expect(books.portfolioCash).toBeCloseTo(0.75 + 224000 + 1500 + 234000);
+    expect(books.brokerageCash).toBeCloseTo(books.portfolioCash - books.otherCash);
+    expect(books.brokerageCash).toBeCloseTo(225500.75);
+    expect(books.otherCash).toBeCloseTo(234000);
+    expect(books.accounts.map((account) => account.account.name)).toEqual(
+      expect.arrayContaining(['Traditional IRA', 'Roth IRA', 'Family IRA']),
+    );
+  });
+
   it('collapses repeated last-known prices and keeps bill warnings first', () => {
     const books = assembleBooks({
       portfolios: [{ id: 'p', name: 'Mine', includeInNetWorth: true, sortOrder: 0 }],
