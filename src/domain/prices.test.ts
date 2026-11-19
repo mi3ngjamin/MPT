@@ -142,7 +142,7 @@ describe('price resolution', () => {
     expect(holding.fallback).toBe(true);
     expect(holding.marketValue).toBeCloseTo(1000);
     expect(holding.avgCostLabel).toMatch(/not tax lot basis/);
-    expect(books.warnings.some((warning) => warning.id.startsWith('fallback'))).toBe(true);
+    expect(books.warnings.some((warning) => warning.id === 'last-known-prices')).toBe(true);
   });
 
   it('leaves market value empty when no price exists', () => {
