@@ -1,3 +1,4 @@
+import { collectQuotes, type FinnhubResult } from '../domain/finnhub';
 import { legacyActivitiesToRows, type LegacyPlan } from '../domain/legacy';
 import {
   DEFAULT_PREFERENCES,
@@ -693,39 +694,24 @@ async function insertSnapshot(userId: string, next: Snapshot) {
   await savePreferences(next.preferences);
 }
 
-export async function fetchFinnhub(symbols: string[]): Promise<{ quotes: Quote[]; missing: string[] }> {
+export async function fetchFinnhub(
+  symbols: string[],
+  options?: { onQuote?: (quote: Quote) => Promise<void> },
+): Promise<FinnhubResult> {
   const key = import.meta.env.VITE_FINNHUB_API_KEY;
   if (!key) throw new Error('Finnhub key is not configured for this build.');
-  const missing: string[] = [];
-  const quotes: Quote[] = [];
-  const unique = [...new Set(symbols.map((symbol) => symbol.toUpperCase()))];
-  for (let index = 0; index < unique.length; index += 4) {
-    const batch = unique.slice(index, index + 4);
-    const found = await Promise.all(
-      batch.map(async (symbol) => {
-        const response = await fetch(
-          `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(key)}`,
-        );
-        if (!response.ok) throw new Error(`Finnhub returned ${response.status} for ${symbol}.`);
-        const body = (await response.json()) as { c?: number; pc?: number };
-        if (typeof body.c !== 'number' || body.c <= 0) {
-          missing.push(symbol);
-          return null;
-        }
-        return {
-          symbol,
-          price: body.c,
-          previousClose: typeof body.pc === 'number' && body.pc > 0 ? body.pc : null,
-          source: 'finnhub' as const,
-          fetchedAt: new Date().toISOString(),
-        };
-      }),
-    );
-    for (const row of found) {
-      if (row) quotes.push(row);
-    }
-  }
-  return { quotes, missing };
+  return collectQuotes(
+    symbols,
+    async (symbol) => {
+      const response = await fetch(
+        `https://finnhub.io/api/v1/quote?symbol=${encodeURIComponent(symbol)}&token=${encodeURIComponent(key)}`,
+      );
+      if (!response.ok) return { status: response.status };
+      const body = (await response.json()) as { c?: number; pc?: number };
+      return { status: response.status, body };
+    },
+    { onQuote: options?.onQuote },
+  );
 }
 
 function portfolioFrom(row: Row): Portfolio {
