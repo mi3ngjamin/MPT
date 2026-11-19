@@ -123,6 +123,36 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
     [snapshot],
   );
 
+  useEffect(() => {
+    if (demo || !snapshot || !books) return;
+    const today = todayLocal();
+    const next = {
+      snapshotDate: today,
+      netWorth: cents(books.netWorth.netWorth),
+      investedValue: cents(books.invested),
+      brokerageCash: cents(books.brokerageCash),
+      checkingCash: cents(books.netWorth.checking),
+      liabilities: cents(books.netWorth.liabilitiesApplied),
+      unrealizedPL: cents(books.unrealized ?? 0),
+      realizedPL: cents(books.realized),
+      note: null,
+    };
+    const existing = snapshot.snapshots.find((row) => row.snapshotDate === today);
+    if (
+      existing &&
+      existing.netWorth === next.netWorth &&
+      existing.investedValue === next.investedValue &&
+      existing.brokerageCash === next.brokerageCash &&
+      existing.checkingCash === next.checkingCash &&
+      existing.liabilities === next.liabilities &&
+      existing.unrealizedPL === next.unrealizedPL &&
+      existing.realizedPL === next.realizedPL
+    ) {
+      return;
+    }
+    void db.upsertDailySnapshot(next).catch(() => undefined);
+  }, [books, demo, snapshot]);
+
   const legacyAvailable = useMemo(
     () => !demo && !!snapshot && snapshot.preferences.legacyImportStatus === 'pending' && hasLegacyData(readLegacy()),
     [demo, snapshot],
@@ -586,4 +616,8 @@ function readLegacy(): LegacyStorage {
 
 function text(err: unknown): string {
   return err instanceof Error ? err.message : 'Something went wrong.';
+}
+
+function cents(value: number): number {
+  return Math.round(value * 100) / 100;
 }

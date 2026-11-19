@@ -4,7 +4,7 @@ import { todayLocal } from '../domain/dates';
 import { createId } from '../domain/ids';
 import { runningBalances } from '../domain/recurrence';
 import type { CheckingTxn } from '../domain/types';
-import { money, plClass } from '../lib/format';
+import { money, moneyTight, plClass } from '../lib/format';
 
 export default function Checking() {
   const { snapshot, saveCheckingTxn, deleteCheckingTxn } = useFinance();
@@ -36,7 +36,8 @@ export default function Checking() {
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Checking</h1>
-          <p className="num text-3xl font-semibold">{money(balance)}</p>
+          <p className="num text-3xl font-semibold sm:hidden">{moneyTight(balance)}</p>
+          <p className="num hidden text-3xl font-semibold sm:block">{money(balance)}</p>
           <p className="text-xs text-muted">
             Opening {money(account.openingBalance)} on {account.openingDate}
             {account.lowBalanceFloor != null ? ` · floor ${money(account.lowBalanceFloor)}` : ''}

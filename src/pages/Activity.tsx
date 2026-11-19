@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Modal, Field } from '../components/ui';
 import { useFinance } from '../context/FinanceContext';
-import { ACTION_HELP, ACTION_LABELS } from '../domain/labels';
+import { ACTION_HELP, ACTION_LABELS, contractLabel } from '../domain/labels';
 import { todayLocal } from '../domain/dates';
 import { createId } from '../domain/ids';
 import type { Activity, ActivityAction, AssetType } from '../domain/types';
@@ -76,7 +76,17 @@ export default function ActivityPage() {
           >
             <span>
               <span className="font-medium">{ACTION_LABELS[row.action]}</span>
-              <span className="ml-2 text-muted">{row.symbol ?? row.note ?? ''}</span>
+              <span className="ml-2 text-muted">
+                {row.symbol
+                  ? contractLabel({
+                      symbol: row.symbol,
+                      underlying: row.underlying ?? undefined,
+                      expiry: row.expiry ?? undefined,
+                      strike: row.strike ?? undefined,
+                      optionRight: row.optionRight,
+                    })
+                  : (row.note ?? '')}
+              </span>
               <span className="mt-1 block text-xs text-muted">
                 {row.date} · {snapshot.accounts.find((account) => account.id === row.accountId)?.name}
               </span>

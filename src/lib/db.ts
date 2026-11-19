@@ -357,6 +357,26 @@ export async function savePreferences(row: Preferences) {
   );
 }
 
+export async function upsertDailySnapshot(row: Omit<NetWorthSnapshot, 'id'>) {
+  const userId = await uid();
+  const { error } = await supabase.from('net_worth_snapshots').upsert(
+    {
+      user_id: userId,
+      snapshot_date: row.snapshotDate,
+      net_worth: row.netWorth,
+      invested_value: row.investedValue,
+      brokerage_cash: row.brokerageCash,
+      checking_cash: row.checkingCash,
+      liabilities: row.liabilities,
+      unrealized_pl: row.unrealizedPL,
+      realized_pl: row.realizedPL,
+      note: row.note,
+    },
+    { onConflict: 'user_id,snapshot_date' },
+  );
+  if (error) throw new Error(error.message);
+}
+
 export async function saveSnapshotRow(row: NetWorthSnapshot) {
   const userId = await uid();
   await write('net_worth_snapshots', {

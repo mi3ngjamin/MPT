@@ -1,3 +1,18 @@
+/** Full currency below $1M. Millions and above use $2.31M so phone cards do not overflow. */
+export function moneyTight(value: number | null | undefined, signed = false): string {
+  if (value == null || !Number.isFinite(value)) return '—';
+  const abs = Math.abs(value);
+  if (abs >= 1_000_000_000) return `${signPrefix(value, signed)}$${(abs / 1_000_000_000).toFixed(2)}B`;
+  if (abs >= 1_000_000) return `${signPrefix(value, signed)}$${(abs / 1_000_000).toFixed(2)}M`;
+  return money(value, signed);
+}
+
+function signPrefix(value: number, signed: boolean): string {
+  if (value < 0) return '−';
+  if (signed && value > 0) return '+';
+  return '';
+}
+
 export function money(value: number | null | undefined, signed = false): string {
   if (value == null || !Number.isFinite(value)) return '—';
   const formatted = value.toLocaleString('en-US', {

@@ -1,4 +1,4 @@
-import { averageCostLabel } from './labels';
+import { averageCostLabel, contractLabel } from './labels';
 import { averageCostPerShare, processLedger, type AuditLine, type Position } from './engine';
 import { computeNetWorth, type NetWorthResult } from './networth';
 import { resolvePrice, valuePosition, type ResolvedPrice } from './prices';
@@ -330,15 +330,22 @@ export function assembleBooks(input: {
     netWorth,
     warnings: buildWarnings(accounts, includedHoldings, input.liabilities, checking),
     topHoldings,
-    allocationBySymbol: topSlices(
-      groupSum(includedHoldings.filter((holding) => (holding.marketValue ?? 0) > 0).map((holding) => ({ label: holding.symbol, value: holding.marketValue ?? 0 }))),
-      6,
+    allocationBySymbol: labelSlices(
+      topSlices(
+        groupSum(
+          includedHoldings
+            .filter((holding) => (holding.marketValue ?? 0) > 0)
+            .map((holding) => ({ label: holding.symbol, value: holding.marketValue ?? 0 })),
+        ),
+        8,
+      ),
+      includedHoldings,
     ),
     allocationByAccount: topSlices(
       accounts
         .filter((account) => account.portfolio.includeInNetWorth && account.invested > 0)
         .map((account) => ({ label: account.account.name, value: account.invested })),
-      6,
+      8,
     ),
     dayChange: dayValues.length ? r8(dayValues.reduce((sum, value) => sum + value, 0)) : null,
     invested,
@@ -415,7 +422,7 @@ function buildWarnings(
         warnings.push({
           id: `oversold-${account.account.id}-${holding.symbol}`,
           severity: 'critical',
-          message: `${holding.symbol} in ${account.account.name} was sold or transferred for more than the open quantity.`,
+          message: `${contractLabel(holding)} in ${account.account.name} was sold or transferred for more than the open quantity.`,
         });
       }
     }
@@ -425,19 +432,19 @@ function buildWarnings(
       warnings.push({
         id: `missing-${holding.accountId}-${holding.symbol}`,
         severity: 'warning',
-        message: `No price for ${holding.symbol}. It is excluded from totals instead of counted as $0.`,
+        message: `No price for ${contractLabel(holding)}. It is excluded from totals instead of counted as $0.`,
       });
     } else if (holding.fallback) {
       warnings.push({
         id: `fallback-${holding.accountId}-${holding.symbol}`,
         severity: 'warning',
-        message: `${holding.symbol} is using its last trade price (${fmt(holding.price ?? 0)}), not a live quote.`,
+        message: `${contractLabel(holding)} is using its last trade price (${fmt(holding.price ?? 0)}), not a live quote.`,
       });
     }
   }
   const stale = holdings.filter((holding) => holding.stale && holding.priceSource === 'live');
   if (stale.length) {
-    const symbols = [...new Set(stale.map((holding) => holding.symbol))];
+    const symbols = [...new Set(stale.map((holding) => contractLabel(holding)))];
     warnings.push({
       id: 'stale-prices',
       severity: 'info',
@@ -480,6 +487,14 @@ function groupSum(rows: { label: string; value: number }[]): Slice[] {
   const map = new Map<string, number>();
   for (const row of rows) map.set(row.label, (map.get(row.label) ?? 0) + row.value);
   return [...map.entries()].map(([label, value]) => ({ label, value: r8(value) }));
+}
+
+function labelSlices(rows: Slice[], holdings: HoldingView[]): Slice[] {
+  const names = new Map(holdings.map((holding) => [holding.symbol, contractLabel(holding)]));
+  return rows.map((row) => ({
+    ...row,
+    label: row.label === 'Other' ? 'Other' : (names.get(row.label) ?? contractLabel({ symbol: row.label })),
+  }));
 }
 
 function topSlices(rows: Slice[], count: number): Slice[] {

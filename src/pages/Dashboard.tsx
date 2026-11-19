@@ -1,10 +1,11 @@
 import { RefreshCw } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { AllocationChart } from '../components/Charts';
+import { AllocationChart, Sparkline } from '../components/Charts';
 import { Empty, Stat } from '../components/ui';
 import { useFinance } from '../context/FinanceContext';
 import { todayLocal } from '../domain/dates';
-import { money, pct, plClass, price } from '../lib/format';
+import { contractLabel } from '../domain/labels';
+import { money, moneyTight, pct, plClass } from '../lib/format';
 
 export default function Dashboard() {
   const { books, snapshot, refreshPrices } = useFinance();
@@ -25,40 +26,85 @@ export default function Dashboard() {
     );
   }
 
+  const trend = snapshot.snapshots
+    .filter((row) => row.snapshotDate !== todayLocal())
+    .map((row) => ({ date: row.snapshotDate, value: row.netWorth }))
+    .concat({ date: todayLocal(), value: books.netWorth.netWorth })
+    .sort((a, b) => a.date.localeCompare(b.date));
+  const ownedAccounts = books.accounts.filter((account) => account.portfolio.includeInNetWorth);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
           <p className="text-sm text-muted">{todayLocal()}</p>
-          <h1 className="text-2xl font-semibold tracking-tight">Dashboard</h1>
+          <h1 className="hidden text-2xl font-semibold tracking-tight lg:block">Dashboard</h1>
         </div>
-        <div className="flex items-center gap-2">
-          <span className={`chip ${whatIf ? 'border-warn/40 text-warn' : ''}`}>{whatIf ? 'What-if' : 'Live'}</span>
-          <button type="button" className="btn-ghost" onClick={() => void refreshPrices()}>
-            <RefreshCw size={16} />
-            Refresh prices
-          </button>
-        </div>
+        <button type="button" className="btn-ghost" onClick={() => void refreshPrices()}>
+          <RefreshCw size={16} />
+          Refresh prices
+        </button>
       </div>
 
-      <section className="card overflow-hidden px-5 py-6 sm:px-7">
-        <p className="text-sm text-muted">{books.netWorth.label}</p>
-        <p className="num mt-1 text-4xl font-semibold tracking-tight sm:text-5xl">{money(books.netWorth.netWorth)}</p>
-        <p className="mt-2 max-w-xl text-sm text-muted">
+      {books.warnings.length ? (
+        <section className="card border-warn/40 p-4 sm:p-5">
+          <h2 className="font-semibold">Needs attention</h2>
+          <ul className="mt-3 space-y-2 text-sm">
+            {books.warnings.map((warning) => (
+              <li key={warning.id} className={warning.severity === 'critical' ? 'text-loss' : warning.severity === 'warning' ? 'text-warn' : 'text-muted'}>
+                {warning.message}
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
+
+      <section className="card overflow-hidden px-4 py-4 sm:px-7 sm:py-6">
+        <p className="text-xs text-muted sm:text-sm">{books.netWorth.label}</p>
+        <p className="num mt-1 text-3xl font-semibold tracking-tight sm:hidden">{moneyTight(books.netWorth.netWorth)}</p>
+        <p className="num mt-1 hidden text-5xl font-semibold tracking-tight sm:block">{money(books.netWorth.netWorth)}</p>
+        <p className="mt-2 hidden max-w-xl text-sm text-muted sm:block">
           Owner portfolios, brokerage cash, and checking, minus resolved liabilities.
           {books.netWorth.hasUnresolved
             ? ` Unresolved ${money(books.netWorth.unresolvedLiabilities)} is shown separately and is not subtracted.`
             : ''}
           {books.investedPartial ? ' Totals exclude holdings with no price.' : ''}
+          {whatIf ? ' What-if prices are on.' : ''}
         </p>
+        <Sparkline points={trend} />
       </section>
 
-      <section className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
-        <Stat label="Invested" value={money(books.invested)} hint={books.investedPartial ? 'Partial — a price is missing' : 'Market value'} />
-        <Stat label="Brokerage cash" value={money(books.brokerageCash)} />
-        <Stat label="Unrealized" value={money(books.unrealized, true)} tone={plClass(books.unrealized)} />
-        <Stat label="Realized" value={money(books.realized, true)} tone={plClass(books.realized)} />
-        <Stat label="Day change" value={books.dayChange == null ? '—' : money(books.dayChange, true)} tone={plClass(books.dayChange)} hint="From the last close" />
+      <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
+        <Stat label="Invested" value={moneyTight(books.invested)} hint={books.investedPartial ? 'Partial — a price is missing' : 'Market value'} />
+        <Stat label="Brokerage cash" value={moneyTight(books.brokerageCash)} />
+        <Stat label="Unrealized" value={moneyTight(books.unrealized, true)} tone={plClass(books.unrealized)} />
+        <Stat label="Realized" value={moneyTight(books.realized, true)} tone={plClass(books.realized)} />
+        <Stat label="Day change" value={books.dayChange == null ? '—' : moneyTight(books.dayChange, true)} tone={plClass(books.dayChange)} hint="From the last close" />
+      </section>
+
+      <section>
+        <h2 className="mb-3 font-semibold">Accounts</h2>
+        <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          {ownedAccounts.map((account) => {
+            const dayValues = account.holdings.map((holding) => holding.dayChange).filter((value): value is number => value != null);
+            const day = dayValues.length ? dayValues.reduce((sum, value) => sum + value, 0) : null;
+            const value = account.total ?? account.invested + account.cash;
+            return (
+              <Link key={account.account.id} to="/investments" className="card block min-w-0 p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate font-medium">{account.account.name}</p>
+                    <p className="mt-1 text-xs text-muted">Cash {moneyTight(account.cash)}</p>
+                  </div>
+                  <div className="shrink-0 text-right">
+                    <p className="num text-lg font-semibold">{moneyTight(value)}</p>
+                    <p className={`num text-xs ${plClass(day)}`}>{day == null ? '—' : moneyTight(day, true)}</p>
+                  </div>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
       </section>
 
       <section className="grid gap-4 lg:grid-cols-2">
@@ -95,12 +141,12 @@ export default function Dashboard() {
               <tbody>
                 {books.topHoldings.map((holding) => (
                   <tr key={`${holding.accountId}-${holding.symbol}`} className="border-t border-line">
-                    <td className="py-3 pr-3 font-medium">{holding.symbol}</td>
-                    <td className="py-3 pr-3 text-muted">{holding.accountName}</td>
-                    <td className="num py-3 pr-3 text-right">{money(holding.marketValue)}</td>
+                    <td className="max-w-[9rem] truncate py-3 pr-3 font-medium sm:max-w-none">{contractLabel(holding)}</td>
+                    <td className="hidden py-3 pr-3 text-muted sm:table-cell">{holding.accountName}</td>
+                    <td className="num py-3 pr-3 text-right">{moneyTight(holding.marketValue)}</td>
                     <td className={`num py-3 text-right ${plClass(holding.unrealized)}`}>
-                      {money(holding.unrealized, true)}
-                      <span className="ml-2 text-xs">{pct(holding.unrealizedPct, true)}</span>
+                      {moneyTight(holding.unrealized, true)}
+                      <span className="ml-2 hidden text-xs sm:inline">{pct(holding.unrealizedPct, true)}</span>
                     </td>
                   </tr>
                 ))}
@@ -125,7 +171,7 @@ export default function Dashboard() {
                       Projected low {money(row.projection.minBalance)} on {row.projection.minDate}
                     </p>
                   </div>
-                  <p className="num text-xl font-semibold">{money(row.balance)}</p>
+                  <p className="num shrink-0 text-lg font-semibold sm:text-xl">{moneyTight(row.balance)}</p>
                 </div>
               </Link>
             ))
@@ -146,26 +192,13 @@ export default function Dashboard() {
                       {bill.autopay ? ' · Autopay' : ''}
                     </p>
                   </div>
-                  <p className={`num ${bill.kind === 'income' ? 'text-gain' : ''}`}>{money(bill.signedAmount, true)}</p>
+                  <p className={`num shrink-0 ${bill.kind === 'income' ? 'text-gain' : ''}`}>{moneyTight(bill.signedAmount, true)}</p>
                 </div>
               ))
             )}
           </div>
         </div>
       </section>
-
-      {books.warnings.length ? (
-        <section className="card p-5">
-          <h2 className="font-semibold">Warnings</h2>
-          <ul className="mt-3 space-y-2 text-sm">
-            {books.warnings.map((warning) => (
-              <li key={warning.id} className={warning.severity === 'critical' ? 'text-loss' : warning.severity === 'warning' ? 'text-warn' : 'text-muted'}>
-                {warning.message}
-              </li>
-            ))}
-          </ul>
-        </section>
-      ) : null}
 
       {books.excluded.length ? (
         <section>
@@ -175,8 +208,8 @@ export default function Dashboard() {
               <div key={portfolio.portfolio.id} className="card p-4">
                 <p className="text-xs uppercase tracking-wide text-muted">Family portfolio</p>
                 <p className="mt-1 font-medium">{portfolio.portfolio.name}</p>
-                <p className="num mt-2 text-xl font-semibold">{money(portfolio.total ?? portfolio.invested + portfolio.cash)}</p>
-                <p className="text-xs text-muted">{price(portfolio.invested)} invested · {money(portfolio.cash)} cash</p>
+                <p className="num mt-2 text-xl font-semibold">{moneyTight(portfolio.total ?? portfolio.invested + portfolio.cash)}</p>
+                <p className="text-xs text-muted">{moneyTight(portfolio.invested)} invested · {moneyTight(portfolio.cash)} cash</p>
               </div>
             ))}
           </div>

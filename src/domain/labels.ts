@@ -1,4 +1,42 @@
+import { isIsoDate } from './dates';
 import type { AccountType, ActivityAction, AssetType, LiabilityType, TaxTreatment } from './types';
+
+const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+/** Friendly option label, e.g. AAPL Dec 18 '26 $200 C. Stocks stay as the ticker. */
+export function contractLabel(input: {
+  symbol: string;
+  underlying?: string;
+  expiry?: string;
+  strike?: number;
+  optionRight?: 'C' | 'P' | null;
+}): string {
+  if (input.underlying && input.expiry && input.strike != null && (input.optionRight === 'C' || input.optionRight === 'P')) {
+    return formatOption(input.underlying, input.expiry, input.strike, input.optionRight);
+  }
+  const parsed = parseOcc(input.symbol);
+  return parsed ? formatOption(parsed.underlying, parsed.expiry, parsed.strike, parsed.right) : input.symbol;
+}
+
+function formatOption(underlying: string, expiry: string, strike: number, right: 'C' | 'P'): string {
+  const year = Number(expiry.slice(0, 4));
+  const month = Number(expiry.slice(5, 7));
+  const day = Number(expiry.slice(8, 10));
+  const monthName = MONTHS[month - 1] ?? '';
+  const strikeText = Number.isInteger(strike)
+    ? strike.toLocaleString('en-US')
+    : strike.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  return `${underlying} ${monthName} ${day} '${String(year).slice(-2)} $${strikeText} ${right}`;
+}
+
+function parseOcc(symbol: string): { underlying: string; expiry: string; strike: number; right: 'C' | 'P' } | null {
+  const match = /^([A-Z]{1,6})(\d{2})(\d{2})(\d{2})([CP])(\d{8})$/.exec(symbol.trim().toUpperCase());
+  if (!match) return null;
+  const expiry = `${2000 + Number(match[2])}-${match[3]}-${match[4]}`;
+  if (!isIsoDate(expiry)) return null;
+  const right = match[5] === 'P' ? 'P' : 'C';
+  return { underlying: match[1], expiry, strike: Number(match[6]) / 1000, right };
+}
 
 export const ACTION_LABELS: Record<ActivityAction, string> = {
   opening_position: 'Opening position',

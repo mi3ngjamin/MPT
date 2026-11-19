@@ -11,12 +11,10 @@ import Investments from './pages/Investments';
 import Settings from './pages/Settings';
 import SignIn from './pages/SignIn';
 
-const demo = new URLSearchParams(window.location.search).has('demo');
-
 export default function App() {
   return (
     <ThemeProvider>
-      <AuthProvider disabled={demo}>
+      <AuthProvider>
         <Gate />
       </AuthProvider>
     </ThemeProvider>
@@ -25,14 +23,16 @@ export default function App() {
 
 function Gate() {
   const { session, loading } = useAuth();
-  if (!demo && loading) {
+  const requestedDemo = new URLSearchParams(window.location.search).has('demo');
+  if (loading) {
     return (
       <div className="grid min-h-dvh place-items-center">
         <p className="text-2xl font-semibold tracking-tight">MPT</p>
       </div>
     );
   }
-  if (!demo && !session) return <SignIn />;
+  const demo = requestedDemo && !session;
+  if (!session && !demo) return <SignIn />;
   return (
     <FinanceProvider demo={demo}>
       <HashRouter>

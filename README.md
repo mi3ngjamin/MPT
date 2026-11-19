@@ -53,6 +53,7 @@ Migrations are in `supabase/migrations/` and must be applied in filename order:
 4. `20261120010300_checking.sql`
 5. `20261120010400_liabilities_and_prefs.sql`
 6. `20261120010500_finalize.sql`
+7. `20261120010600_daily_net_worth.sql` — one net-worth row per user per day, upserted by the dashboard
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010000_helpers.sql
@@ -61,9 +62,10 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010200_pr
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010300_checking.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010400_liabilities_and_prefs.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010500_finalize.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010600_daily_net_worth.sql
 ```
 
-They are written to be re-run: tables use `if not exists`, and policies are dropped before they are created. The last file drops the migration helper. `scripts/auth-stub.sql` is only for a local Postgres that does not have Supabase's `auth` schema. Do not run it on the hosted project.
+They are written to be re-run: tables use `if not exists`, and policies are dropped before they are created. `20261120010500_finalize.sql` drops the migration helper. The daily snapshot migration adds a unique index so today can be upserted. `scripts/auth-stub.sql` is only for a local Postgres that does not have Supabase's `auth` schema. Do not run it on the hosted project.
 
 `scripts/verify-migrations.sh` applies the set twice to a throwaway local database and checks that each table has RLS, that `anon` has no grants, and that one user cannot read or spoof another user's rows.
 

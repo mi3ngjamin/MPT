@@ -1,4 +1,5 @@
-import type { Activity, Snapshot } from '../domain/types';
+import { addDays, todayLocal } from '../domain/dates';
+import type { Activity, NetWorthSnapshot, Snapshot } from '../domain/types';
 
 const fresh = new Date().toISOString();
 const stale = new Date(Date.now() - 10 * 86_400_000).toISOString();
@@ -188,7 +189,7 @@ export function demoSnapshot(): Snapshot {
         note: 'Not final',
       },
     ],
-    snapshots: [],
+    snapshots: demoHistory(),
     preferences: {
       priceMode: 'live',
       theme: 'dark',
@@ -197,6 +198,23 @@ export function demoSnapshot(): Snapshot {
       activeScenarioId: null,
     },
   };
+}
+
+function demoHistory(): NetWorthSnapshot[] {
+  const today = todayLocal();
+  const points = [64200, 65840, 67110, 68450, 69320, 69880];
+  return points.map((netWorth, index) => ({
+    id: `snap-${index}`,
+    snapshotDate: addDays(today, index - points.length),
+    netWorth,
+    investedValue: 46000,
+    brokerageCash: 8200,
+    checkingCash: 14400,
+    liabilities: 8640,
+    unrealizedPL: 6800,
+    realizedPL: 240,
+    note: null,
+  }));
 }
 
 function txn(

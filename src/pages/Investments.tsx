@@ -3,7 +3,8 @@ import { useFinance } from '../context/FinanceContext';
 import type { AccountView, HoldingView } from '../domain/assemble';
 import { modelBuyMore } from '../domain/modeler';
 import { createId } from '../domain/ids';
-import { money, pct, plClass, price, qty, relativeTime } from '../lib/format';
+import { contractLabel } from '../domain/labels';
+import { money, moneyTight, pct, plClass, price, qty, relativeTime } from '../lib/format';
 
 export default function Investments() {
   const { books, snapshot, setWhatIf, saveScenario, applyScenario, saveManualPrice } = useFinance();
@@ -52,7 +53,7 @@ export default function Investments() {
                 {!portfolio.portfolio.includeInNetWorth ? <p className="text-xs text-warn">Excluded from net worth</p> : null}
               </div>
               <p className="num text-sm text-muted">
-                {money(portfolio.total ?? portfolio.invested)} · cash {money(portfolio.cash)} · P/L {money(portfolio.unrealized, true)}
+                {moneyTight(portfolio.total ?? portfolio.invested)} · cash {moneyTight(portfolio.cash)} · P/L {moneyTight(portfolio.unrealized, true)}
               </p>
             </div>
             {portfolio.accounts.map((account) => (
@@ -74,9 +75,9 @@ export default function Investments() {
                     <tbody>
                       {portfolio.aggregated.map((row) => (
                         <tr key={row.symbol} className="border-t border-line">
-                          <td className="py-2">{row.symbol}</td>
+                          <td className="py-2">{contractLabel({ symbol: row.symbol })}</td>
                           <td className="num py-2 text-right">{qty(row.quantity)}</td>
-                          <td className="num py-2 text-right">{money(row.marketValue)}</td>
+                          <td className="num py-2 text-right">{moneyTight(row.marketValue)}</td>
                           <td className="num py-2 text-right">{pct(row.weight)}</td>
                         </tr>
                       ))}
@@ -107,7 +108,7 @@ export default function Investments() {
                 }}
               >
                 <label className="min-w-32 flex-1">
-                  <span className="label">{symbol}</span>
+                  <span className="label">{contractLabel({ symbol })}</span>
                   <input className="field num" name="price" inputMode="decimal" defaultValue={current?.price ?? ''} aria-label={`What-if price for ${symbol}`} />
                 </label>
                 <button type="submit" className="btn-ghost">
@@ -173,8 +174,8 @@ function AccountCard({
           </p>
         </div>
         <div className="text-right text-sm">
-          <p className={`num font-semibold ${account.negativeCash ? 'text-loss' : ''}`}>Cash {money(account.cash)}</p>
-          <p className="num text-muted">Total {money(account.total ?? account.invested + account.cash)}</p>
+          <p className={`num font-semibold ${account.negativeCash ? 'text-loss' : ''}`}>Cash {moneyTight(account.cash)}</p>
+          <p className="num text-muted">Total {moneyTight(account.total ?? account.invested + account.cash)}</p>
         </div>
       </div>
       {account.negativeCash ? <p className="mt-2 text-sm text-loss">Cash is negative. The ledger was still applied.</p> : null}
@@ -229,23 +230,15 @@ function HoldingRow({
     <div className="rounded-xl border border-line bg-panel-2/40 p-3">
       <div className="flex items-start justify-between gap-3">
         <div>
-          <p className="font-medium">
-            {holding.symbol}
-            {holding.optionRight ? (
-              <span className="ml-2 text-xs text-muted">
-                {holding.underlying} {holding.expiry} {holding.strike}
-                {holding.optionRight}
-              </span>
-            ) : null}
-          </p>
+          <p className="font-medium">{contractLabel(holding)}</p>
           <p className="text-xs text-muted">
             {qty(holding.quantity)} {option ? 'contracts' : 'shares'} · {holding.avgCostLabel} {price(holding.avgCost)}
           </p>
         </div>
         <div className="text-right">
-          <p className="num font-semibold">{money(holding.marketValue)}</p>
+          <p className="num font-semibold">{moneyTight(holding.marketValue)}</p>
           <p className={`num text-xs ${plClass(holding.unrealized)}`}>
-            {money(holding.unrealized, true)} {pct(holding.unrealizedPct, true)}
+            {moneyTight(holding.unrealized, true)} {pct(holding.unrealizedPct, true)}
           </p>
         </div>
       </div>
