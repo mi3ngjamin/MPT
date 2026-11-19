@@ -38,6 +38,8 @@ export interface HoldingView {
   stale: boolean;
   fallback: boolean;
   missing: boolean;
+  /** ISO time of the quote, or the last trade date for a fallback price. */
+  priceAsOf: string | null;
   previousClose: number | null;
   marketValue: number | null;
   unrealized: number | null;
@@ -104,6 +106,9 @@ export interface UserWarning {
   id: string;
   severity: 'critical' | 'warning' | 'info';
   message: string;
+  /** Lower renders first. Checking and bills are 0. */
+  rank: number;
+  symbols?: string[];
 }
 
 export interface CheckingView {
@@ -126,6 +131,10 @@ export interface Books {
   invested: number;
   investedPartial: boolean;
   brokerageCash: number;
+  /** Cash in net-worth accounts whose type is other (bank and savings). */
+  otherCash: number;
+  /** Brokerage cash + bank/savings cash + checking. */
+  liquidCash: number;
   portfolioCash: number;
   realized: number;
   unrealized: number | null;
@@ -162,15 +171,25 @@ export function assembleBooks(input: {
     const holdings: HoldingView[] = (book?.positions ?? [])
       .filter((position) => Math.abs(position.quantity) > 1e-6)
       .map((position) => {
+        const live = quotes.find((quote) => quote.symbol === position.symbol && quote.source === 'finnhub') ?? null;
+        const manual = quotes.find((quote) => quote.symbol === position.symbol && quote.source === 'manual') ?? null;
         const resolved = resolvePrice({
           assetType: position.assetType,
           mode: input.mode,
           whatIf: whatIf.get(position.symbol) ?? null,
-          live: quotes.find((quote) => quote.symbol === position.symbol && quote.source === 'finnhub') ?? null,
-          manual: quotes.find((quote) => quote.symbol === position.symbol && quote.source === 'manual') ?? null,
+          live,
+          manual,
           lastKnown: position.lastTradePrice ?? null,
           now: input.nowMs,
         });
+        const priceAsOf =
+          resolved.source === 'live'
+            ? live?.fetchedAt ?? null
+            : resolved.source === 'manual'
+              ? manual?.fetchedAt ?? null
+              : resolved.source === 'last_known'
+                ? position.lastTradeDate ?? null
+                : null;
         const valued = valuePosition(position, resolved);
         return {
           accountId: account.id,
@@ -190,6 +209,7 @@ export function assembleBooks(input: {
           stale: resolved.stale,
           fallback: resolved.fallback,
           missing: resolved.missing,
+          priceAsOf,
           previousClose: resolved.previousClose,
           marketValue: valued.marketValue,
           unrealized: valued.unrealized,
@@ -279,6 +299,11 @@ export function assembleBooks(input: {
       .filter((account) => account.portfolio.includeInNetWorth && account.account.accountType === 'brokerage')
       .reduce((sum, account) => sum + account.cash, 0),
   );
+  const otherCash = r8(
+    accounts
+      .filter((account) => account.portfolio.includeInNetWorth && account.account.accountType === 'other')
+      .reduce((sum, account) => sum + account.cash, 0),
+  );
   const realized = r8(included.reduce((sum, portfolio) => sum + portfolio.realized, 0));
   const dayValues = included.flatMap((portfolio) => (portfolio.dayChange == null ? [] : [portfolio.dayChange]));
   const unrealized = included.some((portfolio) => portfolio.unrealized != null)
@@ -328,7 +353,7 @@ export function assembleBooks(input: {
     included,
     excluded,
     netWorth,
-    warnings: buildWarnings(accounts, includedHoldings, input.liabilities, checking),
+    warnings: buildWarnings(accounts, includedHoldings, checking),
     topHoldings,
     allocationBySymbol: labelSlices(
       topSlices(
@@ -351,6 +376,8 @@ export function assembleBooks(input: {
     invested,
     investedPartial,
     brokerageCash,
+    otherCash,
+    liquidCash: r8(brokerageCash + otherCash + checkingTotal),
     portfolioCash,
     realized,
     unrealized,
@@ -402,18 +429,39 @@ function aggregate(accounts: AccountView[], invested: number): AggregatedHolding
     .sort((a, b) => (b.marketValue ?? -1) - (a.marketValue ?? -1));
 }
 
-function buildWarnings(
-  accounts: AccountView[],
-  holdings: HoldingView[],
-  liabilities: Liability[],
-  checking: CheckingView[],
-): UserWarning[] {
+function buildWarnings(accounts: AccountView[], holdings: HoldingView[], checking: CheckingView[]): UserWarning[] {
   const warnings: UserWarning[] = [];
+  for (const row of checking) {
+    if (row.balance < 0) {
+      warnings.push({
+        id: `checking-neg-${row.account.id}`,
+        severity: 'critical',
+        rank: 0,
+        message: `${row.account.name} balance is negative (${fmt(row.balance)}).`,
+      });
+    } else if (row.account.lowBalanceFloor != null && row.balance < row.account.lowBalanceFloor) {
+      warnings.push({
+        id: `checking-floor-${row.account.id}`,
+        severity: 'warning',
+        rank: 0,
+        message: `${row.account.name} is below its ${fmt(row.account.lowBalanceFloor)} floor.`,
+      });
+    }
+    for (const warning of row.projection.warnings) {
+      warnings.push({
+        id: `proj-${row.account.id}-${warning.code}-${warning.date}`,
+        severity: warning.code === 'below_zero' || warning.code === 'autopay_shortfall' ? 'critical' : 'warning',
+        rank: 0,
+        message: `${row.account.name}: ${warning.message}`,
+      });
+    }
+  }
   for (const account of accounts) {
     if (account.negativeCash) {
       warnings.push({
         id: `cash-${account.account.id}`,
         severity: 'critical',
+        rank: 1,
         message: `Cash in ${account.account.name} is negative (${fmt(account.cash)}).`,
       });
     }
@@ -422,6 +470,7 @@ function buildWarnings(
         warnings.push({
           id: `oversold-${account.account.id}-${holding.symbol}`,
           severity: 'critical',
+          rank: 1,
           message: `${contractLabel(holding)} in ${account.account.name} was sold or transferred for more than the open quantity.`,
         });
       }
@@ -432,55 +481,40 @@ function buildWarnings(
       warnings.push({
         id: `missing-${holding.accountId}-${holding.symbol}`,
         severity: 'warning',
+        rank: 2,
         message: `No price for ${contractLabel(holding)}. It is excluded from totals instead of counted as $0.`,
       });
-    } else if (holding.fallback) {
-      warnings.push({
-        id: `fallback-${holding.accountId}-${holding.symbol}`,
-        severity: 'warning',
-        message: `${contractLabel(holding)} is using its last trade price (${fmt(holding.price ?? 0)}), not a live quote.`,
-      });
     }
+  }
+  const fallbacks = holdings.filter((holding) => holding.fallback);
+  if (fallbacks.length) {
+    const symbols = [...new Set(fallbacks.map((holding) => contractLabel(holding)))].sort();
+    warnings.push({
+      id: 'last-known-prices',
+      severity: 'info',
+      rank: 3,
+      symbols,
+      message:
+        fallbacks.length === 1
+          ? '1 holding is using a last-known price'
+          : `${fallbacks.length} holdings are using last-known prices`,
+    });
   }
   const stale = holdings.filter((holding) => holding.stale && holding.priceSource === 'live');
   if (stale.length) {
-    const symbols = [...new Set(stale.map((holding) => contractLabel(holding)))];
+    const symbols = [...new Set(stale.map((holding) => contractLabel(holding)))].sort();
     warnings.push({
       id: 'stale-prices',
       severity: 'info',
-      message: `${symbols.length === 1 ? symbols[0] : `${symbols.length} quotes`} ${symbols.length === 1 ? 'is' : 'are'} more than 36 hours old.`,
+      rank: 4,
+      symbols,
+      message:
+        symbols.length === 1
+          ? `${symbols[0]} is more than 36 hours old.`
+          : `${symbols.length} quotes are more than 36 hours old.`,
     });
   }
-  if (liabilities.some((row) => row.unresolved)) {
-    warnings.push({
-      id: 'unresolved',
-      severity: 'info',
-      message: 'Net worth is labeled before unresolved taxes and liabilities. Those balances are not subtracted.',
-    });
-  }
-  for (const row of checking) {
-    if (row.balance < 0) {
-      warnings.push({
-        id: `checking-neg-${row.account.id}`,
-        severity: 'critical',
-        message: `${row.account.name} balance is negative (${fmt(row.balance)}).`,
-      });
-    } else if (row.account.lowBalanceFloor != null && row.balance < row.account.lowBalanceFloor) {
-      warnings.push({
-        id: `checking-floor-${row.account.id}`,
-        severity: 'warning',
-        message: `${row.account.name} is below its ${fmt(row.account.lowBalanceFloor)} floor.`,
-      });
-    }
-    for (const warning of row.projection.warnings) {
-      warnings.push({
-        id: `proj-${row.account.id}-${warning.code}-${warning.date}`,
-        severity: warning.code === 'below_zero' || warning.code === 'autopay_shortfall' ? 'critical' : 'warning',
-        message: `${row.account.name}: ${warning.message}`,
-      });
-    }
-  }
-  return warnings;
+  return warnings.sort((a, b) => a.rank - b.rank || a.message.localeCompare(b.message));
 }
 
 function groupSum(rows: { label: string; value: number }[]): Slice[] {

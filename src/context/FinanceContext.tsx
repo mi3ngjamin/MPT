@@ -1,5 +1,6 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
   useMemo,
@@ -11,6 +12,7 @@ import { assembleBooks, type Books } from '../domain/assemble';
 import { todayLocal } from '../domain/dates';
 import { createId } from '../domain/ids';
 import { hasLegacyData, planLegacyImport, type LegacyStorage } from '../domain/legacy';
+import { isUsMarketOpen, quotesNeedRefresh, QUOTE_POLL_MS, stockSymbols } from '../domain/market';
 import { r8 } from '../domain/round';
 import {
   type Account,
@@ -41,7 +43,7 @@ interface FinanceValue {
   snapshot: Snapshot;
   books: Books;
   legacyAvailable: boolean;
-  refreshPrices: () => Promise<void>;
+  refreshPrices: (options?: { silent?: boolean; force?: boolean }) => Promise<void>;
   setPriceMode: (mode: Preferences['priceMode']) => Promise<void>;
   saveTheme: (theme: Preferences['theme']) => Promise<void>;
   setProjectionDays: (days: number) => Promise<void>;
@@ -85,6 +87,8 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const snapshotRef = useRef(snapshot);
+  const refreshRef = useRef<(options?: { silent?: boolean; force?: boolean }) => Promise<void>>(async () => undefined);
+  const refreshing = useRef(false);
   useEffect(() => {
     snapshotRef.current = snapshot;
   }, [snapshot]);
@@ -153,6 +157,73 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
     void db.upsertDailySnapshot(next).catch(() => undefined);
   }, [books, demo, snapshot]);
 
+  const refreshQuotes = useCallback(async (options?: { silent?: boolean; force?: boolean }) => {
+    const current = snapshotRef.current;
+    if (!current) return;
+    const symbols = stockSymbols(current.activities);
+    const silent = options?.silent === true;
+    if (!symbols.length) {
+      if (!silent) setNotice('No stock symbols to refresh.');
+      return;
+    }
+    if (!options?.force && !quotesNeedRefresh(current.quotes, symbols)) return;
+    if (refreshing.current) return;
+    refreshing.current = true;
+    try {
+      if (demo) {
+        setSnapshot({
+          ...current,
+          quotes: current.quotes.map((quote) =>
+            quote.source === 'finnhub'
+              ? { ...quote, price: r8(quote.price * 1.001), fetchedAt: new Date().toISOString() }
+              : quote,
+          ),
+        });
+        if (!silent) setNotice('Sample prices marked fresh.');
+        return;
+      }
+      const result = await db.fetchFinnhub(symbols);
+      for (const quote of result.quotes) await db.saveQuote(quote);
+      setSnapshot(await db.loadSnapshot());
+      if (!silent) {
+        setNotice(
+          result.missing.length
+            ? `Updated ${result.quotes.length}. No quote for ${result.missing.join(', ')}.`
+            : `Updated ${result.quotes.length} quotes.`,
+        );
+      }
+    } catch (err) {
+      if (!silent) setError(text(err));
+    } finally {
+      refreshing.current = false;
+    }
+  }, [demo]);
+
+  useEffect(() => {
+    refreshRef.current = refreshQuotes;
+  }, [refreshQuotes]);
+
+  const quotesReady = snapshot != null;
+  useEffect(() => {
+    if (!quotesReady) return;
+    const run = () => {
+      void refreshRef.current({ silent: true });
+    };
+    run();
+    const onVisible = () => {
+      if (document.visibilityState === 'visible' && isUsMarketOpen()) run();
+    };
+    const id = window.setInterval(() => {
+      if (document.visibilityState !== 'visible' || !isUsMarketOpen()) return;
+      run();
+    }, QUOTE_POLL_MS);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [quotesReady, demo]);
+
   const legacyAvailable = useMemo(
     () => !demo && !!snapshot && snapshot.preferences.legacyImportStatus === 'pending' && hasLegacyData(readLegacy()),
     [demo, snapshot],
@@ -195,39 +266,7 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
     snapshot,
     books,
     legacyAvailable,
-    async refreshPrices() {
-      const symbols = [
-        ...new Set(
-          snapshot.activities
-            .filter((row) => row.assetType === 'stock_etf' && row.symbol)
-            .map((row) => row.symbol as string),
-        ),
-      ];
-      if (!symbols.length) {
-        setNotice('No stock symbols to refresh.');
-        return;
-      }
-      if (demo) {
-        setSnapshot({
-          ...snapshot,
-          quotes: snapshot.quotes.map((quote) =>
-            quote.source === 'finnhub'
-              ? { ...quote, price: r8(quote.price * 1.001), fetchedAt: new Date().toISOString() }
-              : quote,
-          ),
-        });
-        setNotice('Sample prices marked fresh.');
-        return;
-      }
-      const result = await db.fetchFinnhub(symbols);
-      for (const quote of result.quotes) await db.saveQuote(quote);
-      setSnapshot(await db.loadSnapshot());
-      setNotice(
-        result.missing.length
-          ? `Updated ${result.quotes.length}. No quote for ${result.missing.join(', ')}.`
-          : `Updated ${result.quotes.length} quotes.`,
-      );
-    },
+    refreshPrices: refreshQuotes,
     setPriceMode: (mode) =>
       commit(
         (current) => ({ ...current, preferences: { ...current.preferences, priceMode: mode } }),

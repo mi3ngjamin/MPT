@@ -73,7 +73,11 @@ export default function Bills() {
               <div key={day} className={`min-h-16 rounded-xl p-1 text-xs ${inMonth ? 'bg-panel-2/40' : 'opacity-40'}`}>
                 <p className="num">{Number(day.slice(8))}</p>
                 {items.map((item) => (
-                  <p key={`${item.item.id}-${item.date}`} className={`truncate ${item.item.kind === 'income' ? 'text-gain' : 'text-ink'}`}>
+                  <p
+                    key={`${item.item.id}-${item.date}`}
+                    title={item.item.name}
+                    className={`whitespace-normal break-words text-left leading-tight ${item.item.kind === 'income' ? 'text-gain' : 'text-ink'}`}
+                  >
                     {item.item.name}
                   </p>
                 ))}

@@ -40,7 +40,7 @@ export default function Dashboard() {
           <p className="text-sm text-muted">{todayLocal()}</p>
           <h1 className="hidden text-2xl font-semibold tracking-tight lg:block">Dashboard</h1>
         </div>
-        <button type="button" className="btn-ghost" onClick={() => void refreshPrices()}>
+        <button type="button" className="btn-ghost" onClick={() => void refreshPrices({ force: true })}>
           <RefreshCw size={16} />
           Refresh prices
         </button>
@@ -51,8 +51,15 @@ export default function Dashboard() {
           <h2 className="font-semibold">Needs attention</h2>
           <ul className="mt-3 space-y-2 text-sm">
             {books.warnings.map((warning) => (
-              <li key={warning.id} className={warning.severity === 'critical' ? 'text-loss' : warning.severity === 'warning' ? 'text-warn' : 'text-muted'}>
-                {warning.message}
+              <li key={warning.id} className={warning.rank === 0 ? 'font-medium text-loss' : warning.severity === 'critical' ? 'text-loss' : warning.severity === 'warning' ? 'text-warn' : 'text-muted'}>
+                {warning.symbols?.length ? (
+                  <details>
+                    <summary className="cursor-pointer">{warning.message}</summary>
+                    <p className="mt-1 font-normal text-muted">{warning.symbols.join(', ')}</p>
+                  </details>
+                ) : (
+                  warning.message
+                )}
               </li>
             ))}
           </ul>
@@ -76,7 +83,12 @@ export default function Dashboard() {
 
       <section className="grid grid-cols-2 gap-3 xl:grid-cols-5">
         <Stat label="Invested" value={moneyTight(books.invested)} hint={books.investedPartial ? 'Partial — a price is missing' : 'Market value'} />
-        <Stat label="Brokerage cash" value={moneyTight(books.brokerageCash)} />
+        <Stat
+          label="Cash"
+          value={moneyTight(books.liquidCash)}
+          title={`Brokerage ${money(books.brokerageCash)}. Bank and savings ${money(books.otherCash)}. Checking ${money(books.netWorth.checking)}.`}
+          hint={`Brokerage ${moneyTight(books.brokerageCash)} · Bank & savings ${moneyTight(books.otherCash)} · Checking ${moneyTight(books.netWorth.checking)}`}
+        />
         <Stat label="Unrealized" value={moneyTight(books.unrealized, true)} tone={plClass(books.unrealized)} />
         <Stat label="Realized" value={moneyTight(books.realized, true)} tone={plClass(books.realized)} />
         <Stat label="Day change" value={books.dayChange == null ? '—' : moneyTight(books.dayChange, true)} tone={plClass(books.dayChange)} hint="From the last close" />
@@ -85,7 +97,10 @@ export default function Dashboard() {
       <section>
         <h2 className="mb-3 font-semibold">Accounts</h2>
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-          {ownedAccounts.map((account) => {
+          {ownedAccounts
+            .slice()
+            .sort((a, b) => (b.total ?? b.invested + b.cash) - (a.total ?? a.invested + a.cash))
+            .map((account) => {
             const dayValues = account.holdings.map((holding) => holding.dayChange).filter((value): value is number => value != null);
             const day = dayValues.length ? dayValues.reduce((sum, value) => sum + value, 0) : null;
             const value = account.total ?? account.invested + account.cash;
@@ -94,7 +109,9 @@ export default function Dashboard() {
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate font-medium">{account.account.name}</p>
-                    <p className="mt-1 text-xs text-muted">Cash {moneyTight(account.cash)}</p>
+                    <p className="mt-1 text-xs text-muted">
+                      {account.holdings.length === 0 ? 'Cash account · ' : ''}Cash {moneyTight(account.cash)}
+                    </p>
                   </div>
                   <div className="shrink-0 text-right">
                     <p className="num text-lg font-semibold">{moneyTight(value)}</p>

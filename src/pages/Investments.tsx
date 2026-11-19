@@ -9,8 +9,32 @@ import { money, moneyTight, pct, plClass, price, qty, relativeTime } from '../li
 export default function Investments() {
   const { books, snapshot, setWhatIf, saveScenario, applyScenario, saveManualPrice } = useFinance();
   const [portfolioId, setPortfolioId] = useState('all');
-  const [scenarioName, setScenarioName] = useState('');
   const portfolios = portfolioId === 'all' ? books.portfolios : books.portfolios.filter((row) => row.portfolio.id === portfolioId);
+  const largestAccountId = useMemo(() => {
+    let bestId = '';
+    let best = -Infinity;
+    for (const portfolio of portfolios) {
+      for (const account of portfolio.accounts) {
+        const value = account.total ?? account.invested + account.cash;
+        if (value > best) {
+          best = value;
+          bestId = account.account.id;
+        }
+      }
+    }
+    return bestId;
+  }, [portfolios]);
+  const [opened, setOpened] = useState<Set<string> | null>(null);
+  const expanded = opened ?? new Set(largestAccountId ? [largestAccountId] : []);
+  const toggleAccount = (id: string) => {
+    setOpened((current) => {
+      const next = new Set(current ?? (largestAccountId ? [largestAccountId] : []));
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+  const [scenarioName, setScenarioName] = useState('');
   const symbols = useMemo(() => {
     const set = new Set<string>();
     for (const portfolio of books.portfolios) {
@@ -57,7 +81,14 @@ export default function Investments() {
               </p>
             </div>
             {portfolio.accounts.map((account) => (
-              <AccountCard key={account.account.id} account={account} portfolioCash={portfolio.cash} portfolioInvested={portfolio.invested} />
+              <AccountCard
+                key={account.account.id}
+                account={account}
+                portfolioCash={portfolio.cash}
+                portfolioInvested={portfolio.invested}
+                open={expanded.has(account.account.id)}
+                onToggle={() => toggleAccount(account.account.id)}
+              />
             ))}
             {portfolio.aggregated.length ? (
               <div className="card p-4">
@@ -159,38 +190,47 @@ function AccountCard({
   account,
   portfolioCash,
   portfolioInvested,
+  open,
+  onToggle,
 }: {
   account: AccountView;
   portfolioCash: number;
   portfolioInvested: number;
+  open: boolean;
+  onToggle: () => void;
 }) {
   return (
     <article className="card p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h3 className="font-semibold">{account.account.name}</h3>
+      <button type="button" className="flex w-full items-start justify-between gap-3 text-left" onClick={onToggle} aria-expanded={open}>
+        <div className="min-w-0">
+          <h3 className="font-semibold">
+            <span className="mr-2 text-muted" aria-hidden>{open ? '▾' : '▸'}</span>
+            {account.account.name}
+          </h3>
           <p className="text-xs text-muted">
-            {account.account.accountType} · {account.account.taxTreatment.replace('_', ' ')}
+            {account.account.accountType} · {account.account.taxTreatment.replace('_', ' ')} · {account.holdings.length} holding{account.holdings.length === 1 ? '' : 's'}
           </p>
         </div>
-        <div className="text-right text-sm">
+        <div className="shrink-0 text-right text-sm">
           <p className={`num font-semibold ${account.negativeCash ? 'text-loss' : ''}`}>Cash {moneyTight(account.cash)}</p>
           <p className="num text-muted">Total {moneyTight(account.total ?? account.invested + account.cash)}</p>
         </div>
-      </div>
-      {account.negativeCash ? <p className="mt-2 text-sm text-loss">Cash is negative. The ledger was still applied.</p> : null}
-      <div className="mt-4 space-y-3">
-        {account.holdings.length === 0 ? <p className="text-sm text-muted">No open positions.</p> : null}
-        {account.holdings.map((holding) => (
-          <HoldingRow
-            key={holding.symbol}
-            holding={holding}
-            accountCash={account.cash}
-            portfolioCash={portfolioCash}
-            portfolioInvested={portfolioInvested}
-          />
-        ))}
-      </div>
+      </button>
+      {open ? (
+        <div className="mt-4 space-y-3">
+          {account.negativeCash ? <p className="text-sm text-loss">Cash is negative. The ledger was still applied.</p> : null}
+          {account.holdings.length === 0 ? <p className="text-sm text-muted">No open positions. This account is cash only.</p> : null}
+          {account.holdings.map((holding) => (
+            <HoldingRow
+              key={holding.symbol}
+              holding={holding}
+              accountCash={account.cash}
+              portfolioCash={portfolioCash}
+              portfolioInvested={portfolioInvested}
+            />
+          ))}
+        </div>
+      ) : null}
     </article>
   );
 }
@@ -243,8 +283,7 @@ function HoldingRow({
         </div>
       </div>
       <p className="mt-2 text-xs text-muted">
-        {price(holding.price)} · {sourceLabel(holding)}
-        {holding.stale ? ` · stale ${relativeTime(snapshot.quotes.find((row) => row.symbol === holding.symbol)?.fetchedAt)}` : ''}
+        {price(holding.price)} · {priceCaption(holding)}
         {holding.oversold ? ' · oversold' : ''}
       </p>
       <button type="button" className="mt-2 text-xs font-medium text-accent" onClick={() => setOpen((value) => !value)} aria-expanded={open}>
@@ -364,10 +403,11 @@ function Meta({ label, value }: { label: string; value: string }) {
   );
 }
 
-function sourceLabel(holding: HoldingView): string {
+function priceCaption(holding: HoldingView): string {
+  const when = holding.priceAsOf ? relativeTime(holding.priceAsOf) : null;
   if (holding.missing) return 'No price';
   if (holding.priceSource === 'what_if') return 'What-if';
-  if (holding.priceSource === 'live') return holding.stale ? 'Live, stale' : 'Live';
-  if (holding.priceSource === 'manual') return 'Manual';
-  return 'Last known price';
+  if (holding.priceSource === 'live') return when ? `Live · ${when}` : 'Live';
+  if (holding.priceSource === 'manual') return when ? `Manual · ${when}` : 'Manual';
+  return when ? `Last known price · ${when}` : 'Last known price';
 }
