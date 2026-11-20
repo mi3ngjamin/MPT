@@ -127,6 +127,7 @@ function TxnForm({
           cleared,
           recurringItemId: editing?.recurringItemId ?? null,
           createdAt: editing?.createdAt ?? new Date().toISOString(),
+          flowOverride: editing?.flowOverride ?? null,
         });
         if (!editing) {
           setDescription('');

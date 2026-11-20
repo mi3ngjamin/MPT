@@ -54,6 +54,7 @@ Migrations are in `supabase/migrations/` and must be applied in filename order:
 5. `20261120010400_liabilities_and_prefs.sql`
 6. `20261120010500_finalize.sql`
 7. `20261120010600_daily_net_worth.sql` — one net-worth row per user per day, upserted by the dashboard
+8. `20261120010700_budget.sql` — budget categories, targets, archived checking history, and card statements
 
 ```bash
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010000_helpers.sql
@@ -63,6 +64,7 @@ psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010300_ch
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010400_liabilities_and_prefs.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010500_finalize.sql
 psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010600_daily_net_worth.sql
+psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f supabase/migrations/20261120010700_budget.sql
 ```
 
 They are written to be re-run: tables use `if not exists`, and policies are dropped before they are created. `20261120010500_finalize.sql` drops the migration helper. The daily snapshot migration adds a unique index so today can be upserted. `scripts/auth-stub.sql` is only for a local Postgres that does not have Supabase's `auth` schema. Do not run it on the hosted project.
@@ -82,7 +84,10 @@ Every table has `user_id uuid not null default auth.uid() references auth.users(
 - `price_scenarios` and `price_scenario_prices` — named sets of what-if prices.
 - `modeled_buys` — a saved buy-more amount per account and symbol.
 - `checking_accounts` — name, opening balance, opening date, optional low-balance floor.
-- `checking_transactions` — signed amount, category, cleared flag, optional recurring link.
+- `checking_transactions` — signed amount, category, cleared flag, optional recurring link, optional flow override.
+- `budget_categories`, `budget_targets`, `budget_settings` — flow types, monthly targets, and an optional payroll contribution used only in the savings rate.
+- `budget_import_raw` and `budget_entries` — archived checking history. Promoting the archive does not post to the register and does not change opening balances.
+- `card_accounts` and `card_transactions` — itemized card charges. A month with charges turns that card's checking payments into transfers.
 - `recurring_items` — bills and income. Cadence is monthly, every N weeks, yearly, or once.
 - `recurring_occurrences` — a paid or skipped date, optionally linked to a transaction.
 - `liabilities` — name, type, balance owed, as-of date, include flag, unresolved flag.

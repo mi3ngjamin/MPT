@@ -1,15 +1,26 @@
+import { isFlowType } from '../domain/budget';
 import { collectQuotes, type FinnhubResult } from '../domain/finnhub';
 import { legacyActivitiesToRows, type LegacyPlan } from '../domain/legacy';
 import {
+  DEFAULT_BUDGET_SETTINGS,
   DEFAULT_PREFERENCES,
   type Account,
   type Activity,
+  type BudgetCategory,
+  type BudgetEntry,
+  type BudgetSettings,
+  type BudgetSource,
+  type BudgetTarget,
+  type CardAccount,
+  type CardTxn,
   type CheckingAccount,
   type CheckingTxn,
+  type FlowType,
   type Liability,
   type ModeledBuy,
   type NetWorthSnapshot,
   type Occurrence,
+  type PayrollCadence,
   type Portfolio,
   type Preferences,
   type PriceScenario,
@@ -77,6 +88,12 @@ export async function loadSnapshot(): Promise<Snapshot> {
     liabilities,
     snapshots,
     preferences,
+    budgetCategories,
+    budgetTargets,
+    budgetEntries,
+    budgetSettings,
+    cardAccounts,
+    cardTxns,
   ] = await Promise.all([
     rows('portfolios'),
     rows('accounts'),
@@ -93,6 +110,12 @@ export async function loadSnapshot(): Promise<Snapshot> {
     rows('liabilities'),
     rows('net_worth_snapshots'),
     rows('preferences'),
+    rows('budget_categories'),
+    rows('budget_targets'),
+    rows('budget_entries'),
+    rows('budget_settings'),
+    rows('card_accounts'),
+    rows('card_transactions'),
   ]);
   const preference = preferences[0];
   return {
@@ -115,6 +138,12 @@ export async function loadSnapshot(): Promise<Snapshot> {
     liabilities: liabilities.map(liabilityFrom),
     snapshots: snapshots.map(snapshotFrom),
     preferences: preference ? preferenceFrom(preference) : { ...DEFAULT_PREFERENCES },
+    budgetCategories: budgetCategories.map(budgetCategoryFrom).sort((a, b) => a.sortOrder - b.sortOrder),
+    budgetTargets: budgetTargets.map(budgetTargetFrom),
+    budgetEntries: budgetEntries.map(budgetEntryFrom),
+    budgetSettings: budgetSettings[0] ? budgetSettingsFrom(budgetSettings[0]) : { ...DEFAULT_BUDGET_SETTINGS },
+    cardAccounts: cardAccounts.map(cardAccountFrom),
+    cardTxns: cardTxns.map(cardTxnFrom),
   };
 }
 
@@ -192,11 +221,104 @@ export async function saveCheckingTxn(row: CheckingTxn) {
     category: row.category,
     cleared: row.cleared,
     recurring_item_id: row.recurringItemId,
+    flow_override: row.flowOverride ?? null,
   });
 }
 
 export async function deleteCheckingTxn(id: string) {
   await remove('checking_transactions', id);
+}
+
+export async function saveBudgetCategory(row: BudgetCategory) {
+  const userId = await uid();
+  await write('budget_categories', {
+    id: row.id,
+    user_id: userId,
+    name: row.name,
+    flow_type: row.flowType,
+    group_name: row.groupName,
+    budget_monthly: row.budgetMonthly,
+    color: row.color,
+    hidden: row.hidden,
+    sort_order: row.sortOrder,
+  });
+}
+
+export async function deleteBudgetCategory(id: string) {
+  await remove('budget_categories', id);
+}
+
+export async function saveBudgetTarget(row: BudgetTarget) {
+  const userId = await uid();
+  await write('budget_targets', {
+    id: row.id,
+    user_id: userId,
+    label: row.label,
+    monthly_amount: row.monthlyAmount,
+    category_name: row.categoryName,
+    payee: row.payee,
+  });
+}
+
+export async function deleteBudgetTarget(id: string) {
+  await remove('budget_targets', id);
+}
+
+export async function saveBudgetSettings(row: BudgetSettings) {
+  const userId = await uid();
+  await write('budget_settings', {
+    user_id: userId,
+    payroll_amount: row.payrollAmount,
+    payroll_cadence: row.payrollCadence,
+  });
+}
+
+export async function saveBudgetEntry(row: BudgetEntry) {
+  const userId = await uid();
+  await write('budget_entries', {
+    id: row.id,
+    user_id: userId,
+    account_name: row.accountName,
+    txn_date: row.date,
+    category: row.category,
+    description: row.description,
+    amount: row.amount,
+    running_balance: row.runningBalance,
+    source: row.source,
+    source_row: row.sourceRow,
+    flow_override: row.flowOverride,
+    category_locked: row.categoryLocked,
+  });
+}
+
+export async function saveCardAccount(row: CardAccount) {
+  const userId = await uid();
+  await write('card_accounts', {
+    id: row.id,
+    user_id: userId,
+    name: row.name,
+    match_names: row.matchNames,
+    sort_order: row.sortOrder,
+  });
+}
+
+export async function deleteCardAccount(id: string) {
+  await remove('card_accounts', id);
+}
+
+export async function saveCardTxn(row: CardTxn) {
+  const userId = await uid();
+  await write('card_transactions', cardTxnTo(row, userId));
+}
+
+export async function saveCardTxns(rows: CardTxn[]) {
+  if (!rows.length) return;
+  const userId = await uid();
+  await write('card_transactions', rows.map((row) => cardTxnTo(row, userId)));
+}
+
+export async function deleteCardTxn(id: string) {
+  await remove('card_transactions', id);
 }
 
 export async function saveRecurring(row: RecurringItem) {
@@ -489,6 +611,13 @@ export async function importLegacyPlan(plan: LegacyPlan) {
 export async function replaceWithSnapshot(next: Snapshot) {
   const userId = await uid();
   const tables = [
+    'card_transactions',
+    'budget_entries',
+    'budget_import_raw',
+    'budget_targets',
+    'budget_categories',
+    'card_accounts',
+    'budget_settings',
     'recurring_occurrences',
     'checking_transactions',
     'recurring_items',
@@ -631,6 +760,7 @@ async function insertSnapshot(userId: string, next: Snapshot) {
         category: row.category,
         cleared: row.cleared,
         recurring_item_id: row.recurringItemId,
+        flow_override: row.flowOverride ?? null,
       })),
     );
   }
@@ -691,6 +821,70 @@ async function insertSnapshot(userId: string, next: Snapshot) {
       })),
     );
   }
+  if (next.budgetCategories?.length) {
+    await write(
+      'budget_categories',
+      next.budgetCategories.map((row) => ({
+        id: row.id,
+        user_id: userId,
+        name: row.name,
+        flow_type: row.flowType,
+        group_name: row.groupName,
+        budget_monthly: row.budgetMonthly,
+        color: row.color,
+        hidden: row.hidden,
+        sort_order: row.sortOrder,
+      })),
+    );
+  }
+  if (next.budgetTargets?.length) {
+    await write(
+      'budget_targets',
+      next.budgetTargets.map((row) => ({
+        id: row.id,
+        user_id: userId,
+        label: row.label,
+        monthly_amount: row.monthlyAmount,
+        category_name: row.categoryName,
+        payee: row.payee,
+      })),
+    );
+  }
+  if (next.budgetEntries?.length) {
+    await write(
+      'budget_entries',
+      next.budgetEntries.map((row) => ({
+        id: row.id,
+        user_id: userId,
+        account_name: row.accountName,
+        txn_date: row.date,
+        category: row.category,
+        description: row.description,
+        amount: row.amount,
+        running_balance: row.runningBalance,
+        source: row.source,
+        source_row: row.sourceRow,
+        flow_override: row.flowOverride,
+        category_locked: row.categoryLocked,
+      })),
+    );
+  }
+  if (next.cardAccounts?.length) {
+    await write(
+      'card_accounts',
+      next.cardAccounts.map((row) => ({
+        id: row.id,
+        user_id: userId,
+        name: row.name,
+        match_names: row.matchNames,
+        sort_order: row.sortOrder,
+      })),
+    );
+  }
+  if (next.cardTxns?.length) {
+    await write('card_transactions', next.cardTxns.map((row) => cardTxnTo(row, userId)));
+  }
+  if (next.budgetSettings) await saveBudgetSettings(next.budgetSettings);
   await savePreferences(next.preferences);
 }
 
@@ -830,7 +1024,90 @@ function txnFrom(row: Row): CheckingTxn {
     cleared: Boolean(row.cleared),
     recurringItemId: str(row.recurring_item_id),
     createdAt: str(row.created_at),
+    flowOverride: flowOf(row.flow_override),
   };
+}
+
+function budgetCategoryFrom(row: Row): BudgetCategory {
+  return {
+    id: String(row.id),
+    name: String(row.name),
+    flowType: flowOf(row.flow_type) ?? 'needs_review',
+    groupName: String(row.group_name ?? 'other'),
+    budgetMonthly: num(row.budget_monthly),
+    color: String(row.color ?? '#94a3b8'),
+    hidden: Boolean(row.hidden),
+    sortOrder: req(row.sort_order),
+  };
+}
+
+function budgetTargetFrom(row: Row): BudgetTarget {
+  return {
+    id: String(row.id),
+    label: String(row.label),
+    monthlyAmount: req(row.monthly_amount),
+    categoryName: str(row.category_name),
+    payee: str(row.payee),
+  };
+}
+
+function budgetEntryFrom(row: Row): BudgetEntry {
+  const source = row.source === 'ffcu' || row.source === 'sofi' || row.source === 'archive' ? row.source : 'archive';
+  return {
+    id: String(row.id),
+    accountName: String(row.account_name),
+    date: String(row.txn_date),
+    category: String(row.category ?? 'Uncategorized'),
+    description: String(row.description ?? ''),
+    amount: req(row.amount),
+    runningBalance: num(row.running_balance),
+    source: source as BudgetSource,
+    sourceRow: req(row.source_row),
+    flowOverride: flowOf(row.flow_override),
+    categoryLocked: Boolean(row.category_locked),
+  };
+}
+
+function budgetSettingsFrom(row: Row): BudgetSettings {
+  const cadence: PayrollCadence = row.payroll_cadence === 'monthly' || row.payroll_cadence === 'biweekly' ? row.payroll_cadence : 'none';
+  return { payrollAmount: req(row.payroll_amount), payrollCadence: cadence };
+}
+
+function cardAccountFrom(row: Row): CardAccount {
+  const names = Array.isArray(row.match_names) ? row.match_names.map((name) => String(name)) : [];
+  return { id: String(row.id), name: String(row.name), matchNames: names, sortOrder: req(row.sort_order) };
+}
+
+function cardTxnFrom(row: Row): CardTxn {
+  return {
+    id: String(row.id),
+    cardAccountId: String(row.card_account_id),
+    date: String(row.txn_date),
+    description: String(row.description ?? ''),
+    amount: req(row.amount),
+    category: String(row.category ?? 'Uncategorized'),
+    flowOverride: flowOf(row.flow_override),
+    statementMonth: String(row.statement_month).slice(0, 7),
+  };
+}
+
+function cardTxnTo(row: CardTxn, userId: string): Row {
+  const month = row.statementMonth.length === 7 ? `${row.statementMonth}-01` : row.statementMonth;
+  return {
+    id: row.id,
+    user_id: userId,
+    card_account_id: row.cardAccountId,
+    txn_date: row.date,
+    description: row.description,
+    amount: row.amount,
+    category: row.category,
+    flow_override: row.flowOverride,
+    statement_month: month,
+  };
+}
+
+function flowOf(value: unknown): FlowType | null {
+  return typeof value === 'string' && isFlowType(value) ? value : null;
 }
 
 function recurringFrom(row: Row): RecurringItem {

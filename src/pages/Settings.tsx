@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
+import { builtinCategories, builtinTargets, FLOW_LABELS, FLOW_TYPES, SAVINGS_RATE_NOTE, signedCardAmount } from '../domain/budget';
+import { parseTransactionCsv } from '../domain/csv';
 import { todayLocal } from '../domain/dates';
 import { createId } from '../domain/ids';
 import { ACCOUNT_TYPE_LABELS, LIABILITY_LABELS, TAX_LABELS } from '../domain/labels';
-import type { Account, AccountType, CheckingAccount, Liability, LiabilityType, Portfolio, TaxTreatment } from '../domain/types';
+import type { Account, AccountType, BudgetCategory, BudgetTarget, CheckingAccount, FlowType, Liability, LiabilityType, PayrollCadence, Portfolio, TaxTreatment } from '../domain/types';
 import { isBackupFile } from '../lib/backup';
 
 export default function Settings() {
@@ -22,6 +24,10 @@ export default function Settings() {
       <PortfolioSection />
       <AccountSection />
       <CheckingSection />
+      <CategorySection />
+      <TargetSection />
+      <PayrollSection />
+      <CardSection />
       <LiabilitySection />
 
       <section className="card space-y-3 p-5">
@@ -350,6 +356,284 @@ function LiabilitySection() {
           Add liability
         </button>
       </form>
+    </section>
+  );
+}
+
+function CategorySection() {
+  const { snapshot, saveBudgetCategory, deleteBudgetCategory } = useFinance();
+  const [name, setName] = useState('');
+  const [flowType, setFlowType] = useState<FlowType>('core_spending');
+  const categories = snapshot.budgetCategories;
+  return (
+    <section id="categories" className="card space-y-3 p-5">
+      <h2 className="font-semibold">Categories</h2>
+      <p className="text-xs text-muted">Flow type decides whether a row is income, core spending, taxes, debt, savings, or a transfer.</p>
+      {categories.length === 0 ? (
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => {
+            void (async () => {
+              for (const row of builtinCategories()) await saveBudgetCategory({ ...row, id: createId() });
+            })();
+          }}
+        >
+          Save default categories
+        </button>
+      ) : (
+        categories.map((row) => (
+          <div key={row.id} className="grid gap-2 border-t border-line pt-3 sm:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)_6rem_auto]">
+            <p className="truncate text-sm font-medium">{row.name}</p>
+            <select
+              className="field"
+              aria-label={`Flow for ${row.name}`}
+              value={row.flowType}
+              onChange={(event) => void saveBudgetCategory({ ...row, flowType: event.target.value as FlowType })}
+            >
+              {FLOW_TYPES.map((flow) => (
+                <option key={flow} value={flow}>
+                  {FLOW_LABELS[flow]}
+                </option>
+              ))}
+            </select>
+            <input
+              className="field num"
+              inputMode="decimal"
+              aria-label={`Monthly budget for ${row.name}`}
+              value={row.budgetMonthly ?? ''}
+              placeholder="Monthly"
+              onChange={(event) =>
+                void saveBudgetCategory({
+                  ...row,
+                  budgetMonthly: event.target.value === '' ? null : Number(event.target.value),
+                })
+              }
+            />
+            <button type="button" className="text-xs text-loss" onClick={() => void deleteBudgetCategory(row.id)}>
+              Delete
+            </button>
+          </div>
+        ))
+      )}
+      <form
+        className="grid gap-2 sm:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const row: BudgetCategory = {
+            id: createId(),
+            name,
+            flowType,
+            groupName: 'other',
+            budgetMonthly: null,
+            color: '#94a3b8',
+            hidden: false,
+            sortOrder: categories.length,
+          };
+          void saveBudgetCategory(row);
+          setName('');
+        }}
+      >
+        <input className="field" value={name} onChange={(event) => setName(event.target.value)} placeholder="New category" aria-label="New category name" required />
+        <select className="field" value={flowType} onChange={(event) => setFlowType(event.target.value as FlowType)} aria-label="New category flow">
+          {FLOW_TYPES.map((flow) => (
+            <option key={flow} value={flow}>
+              {FLOW_LABELS[flow]}
+            </option>
+          ))}
+        </select>
+        <button type="submit" className="btn-primary">
+          Add category
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function TargetSection() {
+  const { snapshot, saveBudgetTarget, deleteBudgetTarget } = useFinance();
+  const [label, setLabel] = useState('');
+  const [amount, setAmount] = useState('');
+  return (
+    <section className="card space-y-3 p-5">
+      <h2 className="font-semibold">Budget targets</h2>
+      {snapshot.budgetTargets.length === 0 ? (
+        <button
+          type="button"
+          className="btn-primary"
+          onClick={() => {
+            void (async () => {
+              for (const row of builtinTargets()) await saveBudgetTarget({ ...row, id: createId() });
+            })();
+          }}
+        >
+          Save monthly targets
+        </button>
+      ) : (
+        snapshot.budgetTargets.map((row) => (
+          <div key={row.id} className="flex items-center justify-between gap-3 text-sm">
+            <span className="truncate">{row.label}</span>
+            <span className="num">{row.monthlyAmount.toLocaleString('en-US', { style: 'currency', currency: 'USD' })}</span>
+            <button type="button" className="text-xs text-loss" onClick={() => void deleteBudgetTarget(row.id)}>
+              Delete
+            </button>
+          </div>
+        ))
+      )}
+      <form
+        className="grid gap-2 sm:grid-cols-3"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const row: BudgetTarget = {
+            id: createId(),
+            label,
+            monthlyAmount: Number(amount),
+            categoryName: null,
+            payee: null,
+          };
+          void saveBudgetTarget(row);
+          setLabel('');
+          setAmount('');
+        }}
+      >
+        <input className="field" value={label} onChange={(event) => setLabel(event.target.value)} placeholder="Label" aria-label="Target label" required />
+        <input className="field num" inputMode="decimal" value={amount} onChange={(event) => setAmount(event.target.value)} placeholder="Monthly" aria-label="Target amount" required />
+        <button type="submit" className="btn-primary">
+          Add target
+        </button>
+      </form>
+    </section>
+  );
+}
+
+function PayrollSection() {
+  const { snapshot, saveBudgetSettings } = useFinance();
+  const settings = snapshot.budgetSettings;
+  return (
+    <section className="card space-y-3 p-5">
+      <h2 className="font-semibold">Payroll contributions</h2>
+      <p className="text-xs text-muted">{SAVINGS_RATE_NOTE}</p>
+      <div className="grid gap-2 sm:grid-cols-2">
+        <label>
+          <span className="label">Amount each time</span>
+          <input
+            className="field num"
+            inputMode="decimal"
+            value={settings.payrollAmount || ''}
+            onChange={(event) =>
+              void saveBudgetSettings({
+                ...settings,
+                payrollAmount: event.target.value === '' ? 0 : Number(event.target.value),
+              })
+            }
+          />
+        </label>
+        <label>
+          <span className="label">Cadence</span>
+          <select
+            className="field"
+            value={settings.payrollCadence}
+            onChange={(event) => void saveBudgetSettings({ ...settings, payrollCadence: event.target.value as PayrollCadence })}
+          >
+            <option value="none">Not included</option>
+            <option value="monthly">Monthly</option>
+            <option value="biweekly">Biweekly</option>
+          </select>
+        </label>
+      </div>
+    </section>
+  );
+}
+
+function CardSection() {
+  const { snapshot, saveCardAccount, deleteCardAccount, importCardTxns } = useFinance();
+  const [name, setName] = useState('');
+  const [cardId, setCardId] = useState(snapshot.cardAccounts[0]?.id ?? '');
+  const [purchasesPositive, setPurchasesPositive] = useState(true);
+  const [notice, setNotice] = useState('');
+  return (
+    <section className="card space-y-3 p-5">
+      <h2 className="font-semibold">Cards</h2>
+      <p className="text-xs text-muted">
+        Once a card has statement rows for a month, payments to that card in that month become transfers and the itemized charges become the spending.
+      </p>
+      {snapshot.cardAccounts.map((card) => (
+        <div key={card.id} className="flex items-center justify-between text-sm">
+          <span>{card.name}</span>
+          <button type="button" className="text-xs text-loss" onClick={() => void deleteCardAccount(card.id)}>
+            Delete
+          </button>
+        </div>
+      ))}
+      <form
+        className="flex gap-2"
+        onSubmit={(event) => {
+          event.preventDefault();
+          const id = createId();
+          void saveCardAccount({ id, name, matchNames: [], sortOrder: snapshot.cardAccounts.length });
+          setCardId(id);
+          setName('');
+        }}
+      >
+        <input className="field" value={name} onChange={(event) => setName(event.target.value)} placeholder="Chase, Amex, FFCU Visa" aria-label="Card name" required />
+        <button type="submit" className="btn-primary">
+          Add card
+        </button>
+      </form>
+      <label>
+        <span className="label">Import a statement</span>
+        <select className="field" value={cardId} onChange={(event) => setCardId(event.target.value)} aria-label="Card for CSV import">
+          <option value="">Choose a card</option>
+          {snapshot.cardAccounts.map((card) => (
+            <option key={card.id} value={card.id}>
+              {card.name}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label className="flex items-center gap-2 text-sm">
+        <input type="checkbox" checked={purchasesPositive} onChange={(event) => setPurchasesPositive(event.target.checked)} />
+        Purchases are positive in the file
+      </label>
+      <label className="btn-ghost cursor-pointer">
+        CSV with date, description, amount, category
+        <input
+          className="sr-only"
+          type="file"
+          accept="text/csv,.csv"
+          aria-label="Import card CSV"
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            const accountId = cardId;
+            if (!file || !accountId) {
+              setNotice('Add a card before importing.');
+              return;
+            }
+            void file.text().then((text) => {
+              const parsed = parseTransactionCsv(text);
+              if (!parsed.rows.length) {
+                setNotice(parsed.errors[0] ?? 'No rows found.');
+                return;
+              }
+              void importCardTxns(
+                parsed.rows.map((row) => ({
+                  id: createId(),
+                  cardAccountId: accountId,
+                  date: row.date,
+                  description: row.description,
+                  amount: signedCardAmount(row.amount, purchasesPositive),
+                  category: row.category || 'Uncategorized',
+                  flowOverride: null,
+                  statementMonth: row.date.slice(0, 7),
+                })),
+              );
+              setNotice(`Imported ${parsed.rows.length} card rows.`);
+            });
+            event.target.value = '';
+          }}
+        />
+      </label>
+      {notice ? <p className="text-xs text-muted">{notice}</p> : null}
     </section>
   );
 }

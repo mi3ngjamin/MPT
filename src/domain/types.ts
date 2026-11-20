@@ -112,6 +112,22 @@ export interface CheckingAccount {
   sortOrder: number;
 }
 
+export type FlowType =
+  | 'income'
+  | 'core_spending'
+  | 'taxes'
+  | 'debt_payment'
+  | 'investment'
+  | 'savings'
+  | 'dependent_savings'
+  | 'transfer_internal'
+  | 'needs_review'
+  | 'card_payment'
+  | 'adjustment';
+
+export type PayrollCadence = 'none' | 'monthly' | 'biweekly';
+export type BudgetSource = 'archive' | 'ffcu' | 'sofi';
+
 export interface CheckingTxn {
   id: string;
   accountId: string;
@@ -122,6 +138,64 @@ export interface CheckingTxn {
   cleared: boolean;
   recurringItemId: string | null;
   createdAt: string | null;
+  /** Wins over the category's flow. Null uses the category. */
+  flowOverride?: FlowType | null;
+}
+
+export interface BudgetCategory {
+  id: string;
+  name: string;
+  flowType: FlowType;
+  groupName: string;
+  budgetMonthly: number | null;
+  color: string;
+  hidden: boolean;
+  sortOrder: number;
+}
+
+export interface BudgetTarget {
+  id: string;
+  label: string;
+  monthlyAmount: number;
+  categoryName: string | null;
+  payee: string | null;
+}
+
+export interface BudgetEntry {
+  id: string;
+  accountName: string;
+  date: string;
+  category: string;
+  description: string;
+  amount: number;
+  runningBalance: number | null;
+  source: BudgetSource;
+  sourceRow: number;
+  flowOverride: FlowType | null;
+  categoryLocked: boolean;
+}
+
+export interface BudgetSettings {
+  payrollAmount: number;
+  payrollCadence: PayrollCadence;
+}
+
+export interface CardAccount {
+  id: string;
+  name: string;
+  matchNames: string[];
+  sortOrder: number;
+}
+
+export interface CardTxn {
+  id: string;
+  cardAccountId: string;
+  date: string;
+  description: string;
+  amount: number;
+  category: string;
+  flowOverride: FlowType | null;
+  statementMonth: string;
 }
 
 export interface RecurringItem {
@@ -196,7 +270,18 @@ export interface Snapshot {
   liabilities: Liability[];
   snapshots: NetWorthSnapshot[];
   preferences: Preferences;
+  budgetCategories: BudgetCategory[];
+  budgetTargets: BudgetTarget[];
+  budgetEntries: BudgetEntry[];
+  budgetSettings: BudgetSettings;
+  cardAccounts: CardAccount[];
+  cardTxns: CardTxn[];
 }
+
+export const DEFAULT_BUDGET_SETTINGS: BudgetSettings = {
+  payrollAmount: 0,
+  payrollCadence: 'none',
+};
 
 export const DEFAULT_PREFERENCES: Preferences = {
   priceMode: 'live',
@@ -223,5 +308,11 @@ export function emptySnapshot(): Snapshot {
     liabilities: [],
     snapshots: [],
     preferences: { ...DEFAULT_PREFERENCES },
+    budgetCategories: [],
+    budgetTargets: [],
+    budgetEntries: [],
+    budgetSettings: { ...DEFAULT_BUDGET_SETTINGS },
+    cardAccounts: [],
+    cardTxns: [],
   };
 }

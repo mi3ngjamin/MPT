@@ -18,6 +18,12 @@ import { r8 } from '../domain/round';
 import {
   type Account,
   type Activity,
+  type BudgetCategory,
+  type BudgetEntry,
+  type BudgetSettings,
+  type BudgetTarget,
+  type CardAccount,
+  type CardTxn,
   type CheckingAccount,
   type CheckingTxn,
   type Liability,
@@ -59,6 +65,17 @@ interface FinanceValue {
   deleteCheckingAccount: (id: string) => Promise<void>;
   saveCheckingTxn: (row: CheckingTxn) => Promise<void>;
   deleteCheckingTxn: (id: string) => Promise<void>;
+  saveBudgetCategory: (row: BudgetCategory) => Promise<void>;
+  deleteBudgetCategory: (id: string) => Promise<void>;
+  saveBudgetTarget: (row: BudgetTarget) => Promise<void>;
+  deleteBudgetTarget: (id: string) => Promise<void>;
+  saveBudgetSettings: (row: BudgetSettings) => Promise<void>;
+  saveBudgetEntry: (row: BudgetEntry) => Promise<void>;
+  saveCardAccount: (row: CardAccount) => Promise<void>;
+  deleteCardAccount: (id: string) => Promise<void>;
+  saveCardTxn: (row: CardTxn) => Promise<void>;
+  deleteCardTxn: (id: string) => Promise<void>;
+  importCardTxns: (rows: CardTxn[]) => Promise<void>;
   saveRecurring: (row: RecurringItem) => Promise<void>;
   deleteRecurring: (id: string) => Promise<void>;
   markPaid: (item: RecurringItem, date: string) => Promise<void>;
@@ -253,7 +270,9 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
     setError(null);
     try {
       if (demo) {
-        setSnapshot(local(current));
+        const next = local(current);
+        snapshotRef.current = next;
+        setSnapshot(next);
         return;
       }
       await remote();
@@ -373,6 +392,65 @@ export function FinanceProvider({ demo, children }: { demo: boolean; children: R
           occurrences: current.occurrences.map((row) => (row.transactionId === id ? { ...row, transactionId: null } : row)),
         }),
         () => db.deleteCheckingTxn(id),
+      ),
+    saveBudgetCategory: (row) =>
+      commit(
+        (current) => ({ ...current, budgetCategories: upsert(current.budgetCategories, row) }),
+        () => db.saveBudgetCategory(row),
+      ),
+    deleteBudgetCategory: (id) =>
+      commit(
+        (current) => ({ ...current, budgetCategories: current.budgetCategories.filter((row) => row.id !== id) }),
+        () => db.deleteBudgetCategory(id),
+      ),
+    saveBudgetTarget: (row) =>
+      commit(
+        (current) => ({ ...current, budgetTargets: upsert(current.budgetTargets, row) }),
+        () => db.saveBudgetTarget(row),
+      ),
+    deleteBudgetTarget: (id) =>
+      commit(
+        (current) => ({ ...current, budgetTargets: current.budgetTargets.filter((row) => row.id !== id) }),
+        () => db.deleteBudgetTarget(id),
+      ),
+    saveBudgetSettings: (row) =>
+      commit(
+        (current) => ({ ...current, budgetSettings: row }),
+        () => db.saveBudgetSettings(row),
+      ),
+    saveBudgetEntry: (row) =>
+      commit(
+        (current) => ({ ...current, budgetEntries: upsert(current.budgetEntries, row) }),
+        () => db.saveBudgetEntry(row),
+      ),
+    saveCardAccount: (row) =>
+      commit(
+        (current) => ({ ...current, cardAccounts: upsert(current.cardAccounts, row) }),
+        () => db.saveCardAccount(row),
+      ),
+    deleteCardAccount: (id) =>
+      commit(
+        (current) => ({
+          ...current,
+          cardAccounts: current.cardAccounts.filter((row) => row.id !== id),
+          cardTxns: current.cardTxns.filter((row) => row.cardAccountId !== id),
+        }),
+        () => db.deleteCardAccount(id),
+      ),
+    saveCardTxn: (row) =>
+      commit(
+        (current) => ({ ...current, cardTxns: upsert(current.cardTxns, row) }),
+        () => db.saveCardTxn(row),
+      ),
+    deleteCardTxn: (id) =>
+      commit(
+        (current) => ({ ...current, cardTxns: current.cardTxns.filter((row) => row.id !== id) }),
+        () => db.deleteCardTxn(id),
+      ),
+    importCardTxns: (rows) =>
+      commit(
+        (current) => ({ ...current, cardTxns: rows.reduce((list, row) => upsert(list, row), current.cardTxns) }),
+        () => db.saveCardTxns(rows),
       ),
     saveRecurring: (row) =>
       commit(
@@ -658,6 +736,12 @@ function mergeLocal(current: Snapshot, extra: Snapshot): Snapshot {
     occurrences: [...current.occurrences, ...extra.occurrences],
     liabilities: [...current.liabilities, ...extra.liabilities],
     snapshots: [...current.snapshots, ...extra.snapshots],
+    budgetCategories: [...(current.budgetCategories ?? []), ...(extra.budgetCategories ?? [])],
+    budgetTargets: [...(current.budgetTargets ?? []), ...(extra.budgetTargets ?? [])],
+    budgetEntries: [...(current.budgetEntries ?? []), ...(extra.budgetEntries ?? [])],
+    budgetSettings: extra.budgetSettings ?? current.budgetSettings,
+    cardAccounts: [...(current.cardAccounts ?? []), ...(extra.cardAccounts ?? [])],
+    cardTxns: [...(current.cardTxns ?? []), ...(extra.cardTxns ?? [])],
   };
 }
 

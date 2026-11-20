@@ -1,5 +1,6 @@
+import { builtinCategories, builtinTargets } from '../domain/budget';
 import { addDays, todayLocal } from '../domain/dates';
-import type { Activity, NetWorthSnapshot, Snapshot } from '../domain/types';
+import { DEFAULT_BUDGET_SETTINGS, type Activity, type NetWorthSnapshot, type Snapshot } from '../domain/types';
 
 const fresh = new Date().toISOString();
 const stale = new Date(Date.now() - 10 * 86_400_000).toISOString();
@@ -190,6 +191,12 @@ export function demoSnapshot(): Snapshot {
       },
     ],
     snapshots: demoHistory(),
+    budgetCategories: builtinCategories(),
+    budgetTargets: builtinTargets(),
+    budgetEntries: [],
+    budgetSettings: { ...DEFAULT_BUDGET_SETTINGS },
+    cardAccounts: [],
+    cardTxns: [],
     preferences: {
       priceMode: 'live',
       theme: 'dark',
