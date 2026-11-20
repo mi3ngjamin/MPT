@@ -71,8 +71,8 @@ export function Shell({ children }: { children: ReactNode }) {
           <p className="truncate px-1 text-xs text-muted">{finance.demo ? 'Sample data' : auth.email}</p>
         </div>
       </aside>
-      <div className="min-w-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">
-        <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur lg:hidden">
+      <div className="flex h-dvh min-w-0 flex-col lg:block lg:h-auto">
+        <header className="z-40 flex shrink-0 items-center justify-between border-b border-line bg-canvas px-4 py-3 lg:hidden">
           <div>
             <p className="text-xs text-muted">MPT</p>
             <p className="font-semibold">{current?.label ?? 'MPT'}</p>
@@ -108,7 +108,9 @@ export function Shell({ children }: { children: ReactNode }) {
             </div>
           </div>
         ) : null}
-        <main className="page mx-auto max-w-6xl px-4 py-6 sm:px-6">{children}</main>
+        <div className="min-h-0 flex-1 overflow-y-auto scroll-pt-16 lg:overflow-visible lg:scroll-pt-0">
+          <main className="page mx-auto max-w-6xl scroll-mt-16 px-4 py-6 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-6 lg:scroll-mt-0 lg:pb-8">{children}</main>
+        </div>
       </div>
       <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-panel/95 px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur lg:hidden" aria-label="Primary">
         {NAV.map((item) => (

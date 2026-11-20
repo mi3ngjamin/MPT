@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useFinance } from '../context/FinanceContext';
 import { useAuth } from '../context/AuthContext';
 import { builtinCategories, builtinTargets, FLOW_LABELS, FLOW_TYPES, SAVINGS_RATE_NOTE, signedCardAmount } from '../domain/budget';
@@ -13,6 +14,11 @@ export default function Settings() {
   const finance = useFinance();
   const auth = useAuth();
   const { snapshot } = finance;
+  const [params] = useSearchParams();
+  useEffect(() => {
+    if (params.get('focus') !== 'payroll') return;
+    document.getElementById('payroll')?.scrollIntoView({ block: 'start' });
+  }, [params]);
 
   return (
     <div className="space-y-6">
@@ -510,7 +516,7 @@ function PayrollSection() {
   const { snapshot, saveBudgetSettings } = useFinance();
   const settings = snapshot.budgetSettings;
   return (
-    <section className="card space-y-3 p-5">
+    <section id="payroll" className="card scroll-mt-16 space-y-3 p-5">
       <h2 className="font-semibold">Payroll contributions</h2>
       <p className="text-xs text-muted">{SAVINGS_RATE_NOTE}</p>
       <div className="grid gap-2 sm:grid-cols-2">
