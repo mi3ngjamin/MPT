@@ -1,3 +1,5 @@
+import { chartMonthLabel } from '../domain/budget';
+
 export interface ChartSeries {
   key: string;
   label: string;
@@ -23,7 +25,7 @@ export function MultiLineChart({
   }
   const width = 640;
   const height = 220;
-  const pad = { l: 8, r: 8, t: 12, b: 28 };
+  const pad = { l: 52, r: 40, t: 12, b: 28 };
   const min = Math.min(0, ...finite);
   const max = Math.max(0, ...finite);
   const span = max - min || 1;
@@ -54,7 +56,7 @@ export function MultiLineChart({
         {labels.map((label, index) =>
           index % Math.ceil(labels.length / 6) === 0 ? (
             <text key={label} x={xAt(index)} y={height - 8} textAnchor="middle" fill="currentColor" opacity="0.55" fontSize="11">
-              {label.slice(2)}
+              {chartMonthLabel(label)}
             </text>
           ) : null,
         )}

@@ -71,7 +71,7 @@ export function Shell({ children }: { children: ReactNode }) {
           <p className="truncate px-1 text-xs text-muted">{finance.demo ? 'Sample data' : auth.email}</p>
         </div>
       </aside>
-      <div className="min-w-0 pb-24 lg:pb-0">
+      <div className="min-w-0 pb-[calc(5.5rem+env(safe-area-inset-bottom))] lg:pb-0">
         <header className="sticky top-0 z-20 flex items-center justify-between border-b border-line bg-canvas/85 px-4 py-3 backdrop-blur lg:hidden">
           <div>
             <p className="text-xs text-muted">MPT</p>

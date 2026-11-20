@@ -5,6 +5,7 @@ import {
   CARD_SPENDING_LABEL,
   categorySeries,
   chartBounds,
+  chartMonthLabel,
   monthlySeries,
   movingAverage,
   payrollForRange,
@@ -321,5 +322,91 @@ describe('budget math', () => {
     expect(periodBounds('trailing12', '2026-11-19', '2026-11').start).toBe('2025-12-01');
     expect(chartBounds('24m', '2026-11-19', '2019-07-01').start).toBe('2024-12-01');
     expect(chartBounds('all', '2026-11-19', '2019-07-04').start).toBe('2019-07-01');
+    expect(chartMonthLabel('2024-12')).toBe("Dec '24");
   });
 });
+
+describe('archived history larger than one PostgREST page', () => {
+  it('keeps trailing-12 income when more than 1000 rows exist', () => {
+    const today = '2026-11-20';
+    const archive = volumeArchive();
+    expect(archive).toHaveLength(2276);
+    const recent = archive.filter((row) => row.date >= '2025-12-01' && row.date <= '2026-11-13');
+    expect(recent.length).toBe(213);
+    const lines = prepareBudget({
+      accounts: [ffcu, sofi],
+      checkingTxns: [],
+      entries: archive,
+      categories: builtinCategories(),
+      cards: [],
+      cardTxns: [],
+    });
+    const bounds = periodBounds('trailing12', today, '2026-11');
+    const totals = summarize(lines, DEFAULT_BUDGET_SETTINGS, bounds.start, bounds.end, true);
+    expect(totals.income).toBe(117600);
+    expect(checkingBalance(ffcu, [], today)).toBe(2050);
+    expect(checkingBalance(sofi, [], today)).toBeCloseTo(2110.86);
+
+    const oldestPage = [...archive].sort((a, b) => a.date.localeCompare(b.date) || a.sourceRow - b.sourceRow).slice(0, 1000);
+    const truncated = prepareBudget({
+      accounts: [ffcu, sofi],
+      checkingTxns: [],
+      entries: oldestPage,
+      categories: builtinCategories(),
+      cards: [],
+      cardTxns: [],
+    });
+    expect(summarize(truncated, DEFAULT_BUDGET_SETTINGS, bounds.start, bounds.end, true).income).toBe(0);
+    const rent = targetRows(lines, builtinTargets(), bounds.start, bounds.end).find((row) => row.label === 'Rent');
+    expect(rent?.actual).toBe(24600);
+  });
+});
+
+function volumeArchive(): BudgetEntry[] {
+  const rows: BudgetEntry[] = [];
+  let sourceRow = 1;
+  const push = (date: string, category: string, description: string, amount: number, accountName = 'FFCU Checking') => {
+    rows.push(
+      entry({
+        id: `vol-${sourceRow}`,
+        date,
+        amount,
+        category,
+        description,
+        accountName,
+        source: 'archive',
+        sourceRow,
+      }),
+    );
+    sourceRow += 1;
+  };
+  for (let index = 0; index < 2063; index += 1) {
+    const day = String((index % 27) + 1).padStart(2, '0');
+    const month = (index % 78) + 1;
+    const year = 2019 + Math.floor((index * 6) / 2063);
+    const clampedYear = Math.min(year, 2025);
+    const monthNumber = clampedYear === 2025 ? Math.min(month, 11) : ((month - 1) % 12) + 1;
+    const date = `${clampedYear}-${String(monthNumber).padStart(2, '0')}-${day}`;
+    push(date < '2019-07-24' ? '2019-07-24' : date, 'Shopping', 'Old', -12, index % 2 === 0 ? 'FFCU Checking' : 'SoFi Checking');
+  }
+  for (let month = 0; month < 12; month += 1) {
+    const year = month === 0 ? 2025 : 2026;
+    const monthNumber = month === 0 ? 12 : month;
+    const stamp = `${year}-${String(monthNumber).padStart(2, '0')}`;
+    push(`${stamp}-01`, 'Income', 'Paycheck', 4900);
+    push(stamp === '2026-11' ? `${stamp}-13` : `${stamp}-15`, 'Income', 'Paycheck', 4900, 'SoFi Checking');
+    push(`${stamp}-02`, 'Monthly Bills', 'Rent', -2050);
+  }
+  for (let index = 0; index < 177; index += 1) {
+    const month = (index % 12) + 1;
+    const year = month === 12 ? 2025 : 2026;
+    const monthNumber = month === 12 ? 12 : month;
+    const day = String((index % 12) + 1).padStart(2, '0');
+    const date = `${year}-${String(monthNumber).padStart(2, '0')}-${day}`;
+    if (index < 49) push(date, 'Emmy', 'Tutoring', -40);
+    else if (index < 54) push(date, 'Check', 'Check', -20);
+    else if (index < 70) push(date, 'Transfer', 'Venmo', -15);
+    else push(date, 'Shopping', 'Store', -18);
+  }
+  return rows;
+}

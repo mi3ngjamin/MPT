@@ -48,6 +48,9 @@ export default function Budget() {
   const [picked, setPicked] = useState<string[]>(['Monthly Bills', 'Food & Groceries', 'Shopping', CARD_SPENDING_LABEL]);
   const [query, setQuery] = useState('');
   const [drill, setDrill] = useState<string | null>(null);
+  const [reviewShown, setReviewShown] = useState(8);
+  const [txnShown, setTxnShown] = useState(80);
+  const monthPicker = period === 'month' || period === 'quarter';
 
   const lines = prepareBudget({
     accounts: snapshot.checkingAccounts,
@@ -125,10 +128,12 @@ export default function Budget() {
           <h1 className="text-2xl font-semibold tracking-tight">Budget</h1>
           <p className="text-sm text-muted">Checking cash flow. History before an opening date stays out of the balance.</p>
         </div>
-        <label>
-          <span className="label">Month</span>
-          <input className="field" type="month" value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Budget month" />
-        </label>
+        {monthPicker ? (
+          <label>
+            <span className="label">Month</span>
+            <input className="field" type="month" value={month} onChange={(event) => setMonth(event.target.value)} aria-label="Budget month" />
+          </label>
+        ) : null}
       </div>
 
       <div className="flex flex-wrap gap-2">
@@ -159,19 +164,35 @@ export default function Budget() {
           <h2 className="font-semibold">Needs review ({review.length})</h2>
           <p className="text-xs text-muted">Venmo, blanks, and anything still uncategorized. A flow override wins over the category.</p>
           <ul className="divide-y divide-line">
-            {review.slice(0, 8).map((line) => (
-              <li key={line.id} className="flex flex-wrap items-center gap-2 py-2 text-sm">
-                <span className="min-w-0 flex-1 truncate">
-                  {line.date} · {line.description || line.category} · {money(line.amount, true)}
-                </span>
-                {QUICK_FLOWS.map((flow) => (
-                  <button key={flow} type="button" className="chip" onClick={() => void applyFlow(line, flow)}>
-                    {FLOW_LABELS[flow] === 'Adjustment' ? 'Ignore' : FLOW_LABELS[flow]}
-                  </button>
-                ))}
+            {review.slice(0, reviewShown).map((line) => (
+              <li key={line.id} className="space-y-2 py-3 text-sm">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 font-medium break-words">{line.description || line.category}</p>
+                  <p className={`num shrink-0 font-medium ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
+                </div>
+                <p className="text-xs text-muted">
+                  <span className="whitespace-nowrap">{line.date}</span>
+                  <span> · {line.accountName}</span>
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {QUICK_FLOWS.map((flow) => (
+                    <button key={flow} type="button" className="chip" onClick={() => void applyFlow(line, flow)}>
+                      {FLOW_LABELS[flow] === 'Adjustment' ? 'Ignore' : FLOW_LABELS[flow]}
+                    </button>
+                  ))}
+                </div>
               </li>
             ))}
           </ul>
+          {review.length > reviewShown ? (
+            <button type="button" className="btn-ghost" onClick={() => setReviewShown(review.length)}>
+              Show all {review.length}
+            </button>
+          ) : review.length > 8 ? (
+            <button type="button" className="btn-ghost" onClick={() => setReviewShown(8)}>
+              Show fewer
+            </button>
+          ) : null}
         </section>
       ) : null}
 
@@ -339,29 +360,34 @@ export default function Budget() {
         ) : null}
         <div className="card divide-y divide-line">
           {visible.length === 0 ? <p className="p-4 text-sm text-muted">No transactions in this period.</p> : null}
-          {visible.slice(0, 80).map((line) => (
-            <div key={`${line.origin}-${line.id}`} className="flex flex-wrap items-center gap-3 px-4 py-3 text-sm">
-              <div className="min-w-0 flex-1">
-                <p className="truncate font-medium">{line.description || line.category}</p>
-                <p className="text-xs text-muted">
-                  {line.date} · {line.accountName} · {FLOW_LABELS[line.flow]}
-                  {line.matchedTransfer ? ' · Matched transfer' : ''}
-                  {line.beforeOpening ? ' · History' : ''}
-                  {!line.countsInBalance && line.origin === 'history' ? ' · Not in balance' : ''}
+          {visible.slice(0, txnShown).map((line) => (
+            <div key={`${line.origin}-${line.id}`} className="space-y-2 px-4 py-3 text-sm sm:flex sm:items-center sm:gap-3 sm:space-y-0">
+              <div className="min-w-0 sm:flex-1">
+                <div className="flex items-start justify-between gap-3">
+                  <p className="min-w-0 font-medium break-words">{line.description || line.category}</p>
+                  <p className={`num shrink-0 font-medium sm:hidden ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
+                </div>
+                <p className="mt-1 flex flex-wrap items-center gap-x-1 text-xs text-muted">
+                  <span className="whitespace-nowrap">{line.date}</span>
+                  <span>· {line.accountName}</span>
+                  <span className="chip">{line.category}</span>
+                  {line.matchedTransfer ? <span>· Matched transfer</span> : null}
+                  {line.beforeOpening ? <span>· History</span> : null}
+                  {!line.countsInBalance && line.origin === 'history' ? <span>· Not in balance</span> : null}
                 </p>
               </div>
-              <label className="w-36">
+              <label className="block sm:w-40">
                 <span className="sr-only">Category for {line.description}</span>
                 <input className="field" list="budget-categories" value={line.category} onChange={(event) => void applyCategory(line, event.target.value)} />
               </label>
-              <label className="w-36">
+              <label className="block sm:w-44">
                 <span className="sr-only">Flow override for {line.description}</span>
                 <select
                   className="field"
                   value={line.flowOverride ?? ''}
                   onChange={(event) => void applyFlow(line, event.target.value ? (event.target.value as FlowType) : null)}
                 >
-                  <option value="">Category default</option>
+                  <option value="">Default</option>
                   {Object.entries(FLOW_LABELS).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -369,10 +395,15 @@ export default function Budget() {
                   ))}
                 </select>
               </label>
-              <p className={`num w-24 text-right font-medium ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
+              <p className={`num hidden w-28 shrink-0 text-right font-medium sm:block ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
             </div>
           ))}
         </div>
+        {visible.length > txnShown ? (
+          <button type="button" className="btn-ghost mt-3" onClick={() => setTxnShown(visible.length)}>
+            Show all {visible.length} transactions
+          </button>
+        ) : null}
         <datalist id="budget-categories">
           {optionNames.map((name) => (
             <option key={name} value={name} />

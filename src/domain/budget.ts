@@ -275,6 +275,14 @@ export function periodBounds(kind: BudgetPeriod, today: string, month: string): 
   return { start: '0001-01-01', end: today };
 }
 
+const CHART_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+
+export function chartMonthLabel(month: string): string {
+  const index = Number(month.slice(5, 7)) - 1;
+  const name = CHART_MONTHS[index] ?? month;
+  return `${name} '${month.slice(2, 4)}`;
+}
+
 export function chartBounds(span: ChartSpan, today: string, earliest: string | null): { start: string; end: string } {
   if (span === 'all' && earliest) return { start: startOfMonth(earliest), end: today };
   return { start: addMonths(startOfMonth(today), -23), end: today };

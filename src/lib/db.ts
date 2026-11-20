@@ -30,6 +30,7 @@ import {
   type WhatIfPrice,
 } from '../domain/types';
 import { remapSnapshot } from './backup';
+import { collectPages } from './paging';
 import { supabase } from './supabase';
 
 type Row = Record<string, unknown>;
@@ -54,10 +55,12 @@ async function uid(): Promise<string> {
   return data.user.id;
 }
 
-async function rows(table: string): Promise<Row[]> {
-  const { data, error } = await supabase.from(table).select('*');
-  if (error) throw new Error(error.message);
-  return (data ?? []) as Row[];
+async function rows(table: string, orderBy = 'id'): Promise<Row[]> {
+  return collectPages(async (from, to) => {
+    const { data, error } = await supabase.from(table).select('*').order(orderBy, { ascending: true }).range(from, to);
+    if (error) throw new Error(error.message);
+    return (data ?? []) as Row[];
+  });
 }
 
 async function write(table: string, values: Row | Row[], options?: { onConflict?: string }) {
@@ -109,11 +112,11 @@ export async function loadSnapshot(): Promise<Snapshot> {
     rows('recurring_occurrences'),
     rows('liabilities'),
     rows('net_worth_snapshots'),
-    rows('preferences'),
+    rows('preferences', 'user_id'),
     rows('budget_categories'),
     rows('budget_targets'),
     rows('budget_entries'),
-    rows('budget_settings'),
+    rows('budget_settings', 'user_id'),
     rows('card_accounts'),
     rows('card_transactions'),
   ]);
