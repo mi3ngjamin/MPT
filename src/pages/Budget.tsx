@@ -1,6 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import { FlowBar, MultiLineChart } from '../components/BudgetCharts';
-import { Stat } from '../components/ui';
+import { Modal, Stat } from '../components/ui';
 import { useFinance } from '../context/FinanceContext';
 import {
   CARD_SPENDING_LABEL,
@@ -48,7 +49,7 @@ export default function Budget() {
   const [picked, setPicked] = useState<string[]>(['Monthly Bills', 'Food & Groceries', 'Shopping', CARD_SPENDING_LABEL]);
   const [query, setQuery] = useState('');
   const [drill, setDrill] = useState<string | null>(null);
-  const [reviewShown, setReviewShown] = useState(8);
+  const [reviewOpen, setReviewOpen] = useState(false);
   const [txnShown, setTxnShown] = useState(80);
   const monthPicker = period === 'month' || period === 'quarter';
 
@@ -84,6 +85,7 @@ export default function Budget() {
 
   const budgeted = targets.reduce((sum, row) => sum + row.budget, 0);
   const tracked = targets.reduce((sum, row) => sum + (row.actual ?? 0), 0);
+  const payrollUnset = snapshot.budgetSettings.payrollCadence === 'none' || snapshot.budgetSettings.payrollAmount <= 0;
 
   async function applyFlow(line: BudgetLine, flow: FlowType | null) {
     if (line.origin === 'checking') {
@@ -160,51 +162,40 @@ export default function Budget() {
       </div>
 
       {review.length ? (
-        <section className="card space-y-3 p-4">
-          <h2 className="font-semibold">Needs review ({review.length})</h2>
-          <p className="text-xs text-muted">Venmo, blanks, and anything still uncategorized. A flow override wins over the category.</p>
-          <ul className="divide-y divide-line">
-            {review.slice(0, reviewShown).map((line) => (
-              <li key={line.id} className="space-y-2 py-3 text-sm">
-                <div className="flex items-start justify-between gap-3">
-                  <p className="min-w-0 font-medium break-words">{line.description || line.category}</p>
-                  <p className={`num shrink-0 font-medium ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
-                </div>
-                <p className="text-xs text-muted">
-                  <span className="whitespace-nowrap">{line.date}</span>
-                  <span> · {line.accountName}</span>
-                </p>
-                <div className="flex flex-wrap gap-2">
-                  {QUICK_FLOWS.map((flow) => (
-                    <button key={flow} type="button" className="chip" onClick={() => void applyFlow(line, flow)}>
-                      {FLOW_LABELS[flow] === 'Adjustment' ? 'Ignore' : FLOW_LABELS[flow]}
-                    </button>
-                  ))}
-                </div>
-              </li>
-            ))}
-          </ul>
-          {review.length > reviewShown ? (
-            <button type="button" className="btn-ghost" onClick={() => setReviewShown(review.length)}>
-              Show all {review.length}
-            </button>
-          ) : review.length > 8 ? (
-            <button type="button" className="btn-ghost" onClick={() => setReviewShown(8)}>
-              Show fewer
-            </button>
-          ) : null}
-        </section>
+        <div className="flex items-center justify-between gap-3 rounded-2xl border border-line bg-panel px-4 py-3">
+          <p className="text-sm">{review.length} transactions need a category</p>
+          <button type="button" className="btn-ghost shrink-0" onClick={() => setReviewOpen(true)}>
+            Review
+          </button>
+        </div>
       ) : null}
 
-      <section className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <section className="grid scroll-mt-16 grid-cols-2 gap-3 lg:grid-cols-3">
         <Stat label="Income" value={moneyTight(totals.income)} />
         <Stat label="Core spending" value={moneyTight(totals.coreSpending)} hint={`Budgeted lines ${moneyTight(budgeted)} · tracked ${moneyTight(tracked)}`} />
         <Stat label="Taxes" value={moneyTight(totals.taxes)} />
         <Stat label="Debt payments" value={moneyTight(totals.debtPayments)} hint={totals.loanProceeds ? `Proceeds ${money(totals.loanProceeds)} are not income` : undefined} />
         <Stat label="Net cash flow" value={moneyTight(totals.net, true)} tone={plClass(totals.net)} hint={totals.cardSpending ? `Card spending ${moneyTight(totals.cardSpending)}` : undefined} />
-        <Stat label="Take-home savings rate" value={pct(totals.savingsRate)} title={SAVINGS_RATE_NOTE} hint={`Savings ${moneyTight(totals.savings)} · investments ${moneyTight(totals.investment)}${totals.payroll ? ` · payroll ${moneyTight(totals.payroll)}` : ''}`} />
+        <Stat
+          label="Take-home savings rate"
+          value={pct(totals.savingsRate)}
+          title={SAVINGS_RATE_NOTE}
+          hint={
+            <>
+              {`Savings ${moneyTight(totals.savings)} · investments ${moneyTight(totals.investment)}`}
+              {totals.payroll ? ` · payroll ${moneyTight(totals.payroll)}` : null}
+              {payrollUnset ? (
+                <>
+                  {' · '}
+                  <Link to="/settings?focus=payroll" className="font-medium text-accent underline">
+                    Add payroll contributions
+                  </Link>
+                </>
+              ) : null}
+            </>
+          }
+        />
       </section>
-      <p className="text-xs text-muted">{SAVINGS_RATE_NOTE}</p>
 
       <section className="card p-4">
         <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
@@ -252,27 +243,14 @@ export default function Budget() {
         />
       </section>
 
-      <section className="grid gap-4 lg:grid-cols-2">
-        <div className="card p-4">
-          <h2 className="mb-3 font-semibold">Where it went</h2>
-          <FlowBar slices={slices} />
-        </div>
-        <div className="card p-4">
-          <h2 className="mb-3 font-semibold">Savings rate</h2>
-          <MultiLineChart
-            labels={months.map((point) => point.month)}
-            series={[
-              { key: 'rate', label: 'Take-home savings rate', color: '#5eead4', values: months.map((point) => (point.savingsRate == null ? null : point.savingsRate * 100)) },
-              ...(showAverage
-                ? [{ key: 'rate-ma', label: '3-month average', color: '#5eead4', dashed: true, values: months.map((point) => (point.savingsRateMa == null ? null : point.savingsRateMa * 100)) }]
-                : []),
-            ]}
-          />
-        </div>
+      <section className="card p-4">
+        <h2 className="mb-3 font-semibold">Where it went</h2>
+        <FlowBar slices={slices} />
       </section>
 
-      <section className="card p-4">
-        <h2 className="mb-2 font-semibold">Category trends</h2>
+      <section className="grid gap-4 lg:grid-cols-2">
+        <div className="card p-4">
+          <h2 className="mb-2 font-semibold">Category trends</h2>
         <div className="mb-3 flex flex-wrap gap-2">
           {categoryLabels.slice(0, 18).map((label) => (
             <button
@@ -300,6 +278,19 @@ export default function Budget() {
             values: trends.map((point) => point.values[label] ?? 0),
           }))}
         />
+        </div>
+        <div className="card p-4">
+          <h2 className="mb-3 font-semibold">Savings rate</h2>
+          <MultiLineChart
+            labels={months.map((point) => point.month)}
+            series={[
+              { key: 'rate', label: 'Take-home savings rate', color: '#5eead4', values: months.map((point) => (point.savingsRate == null ? null : point.savingsRate * 100)) },
+              ...(showAverage
+                ? [{ key: 'rate-ma', label: '3-month average', color: '#5eead4', dashed: true, values: months.map((point) => (point.savingsRateMa == null ? null : point.savingsRateMa * 100)) }]
+                : []),
+            ]}
+          />
+        </div>
       </section>
 
       <section className="card p-4">
@@ -410,6 +401,31 @@ export default function Budget() {
           ))}
         </datalist>
       </section>
+
+      <Modal open={reviewOpen} onClose={() => setReviewOpen(false)} title={`${review.length} transactions need a category`}>
+        <p className="mb-3 text-xs text-muted">Venmo, blanks, and anything still uncategorized. A flow override wins over the category.</p>
+        <ul className="divide-y divide-line">
+          {review.map((line) => (
+            <li key={line.id} className="space-y-2 py-3 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <p className="min-w-0 font-medium break-words">{line.description || line.category}</p>
+                <p className={`num shrink-0 font-medium ${plClass(line.amount)}`}>{money(line.amount, true)}</p>
+              </div>
+              <p className="text-xs text-muted">
+                <span className="whitespace-nowrap">{line.date}</span>
+                <span> · {line.accountName}</span>
+              </p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_FLOWS.map((flow) => (
+                  <button key={flow} type="button" className="chip" onClick={() => void applyFlow(line, flow)}>
+                    {FLOW_LABELS[flow] === 'Adjustment' ? 'Ignore' : FLOW_LABELS[flow]}
+                  </button>
+                ))}
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Modal>
     </div>
   );
 }

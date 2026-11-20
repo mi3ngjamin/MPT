@@ -76,9 +76,9 @@ export function Empty({ title, body, action }: { title: string; body: string; ac
   );
 }
 
-export function Stat({ label, value, hint, tone, title }: { label: string; value: string; hint?: string; tone?: string; title?: string }) {
+export function Stat({ label, value, hint, tone, title }: { label: string; value: string; hint?: ReactNode; tone?: string; title?: string }) {
   return (
-    <div className="card px-4 py-4" title={title}>
+    <div className="card scroll-mt-16 px-4 py-4" title={title}>
       <p className="text-xs font-medium uppercase tracking-wide text-muted">{label}</p>
       <p className={`num mt-2 truncate text-xl font-semibold tracking-tight sm:text-2xl ${tone ?? ''}`}>{value}</p>
       {hint ? <p className="mt-1 text-xs text-muted">{hint}</p> : null}
