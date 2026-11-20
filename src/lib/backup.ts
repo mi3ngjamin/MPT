@@ -1,5 +1,5 @@
 import { createId } from '../domain/ids';
-import type { Snapshot } from '../domain/types';
+import { DEFAULT_BUDGET_SETTINGS, type Snapshot } from '../domain/types';
 
 export interface BackupFile {
   version: 1;
@@ -75,6 +75,16 @@ export function remapSnapshot(input: Snapshot): Snapshot {
     })),
     liabilities: input.liabilities.map((row) => ({ ...row, id: must(ids, row.id) })),
     snapshots: input.snapshots.map((row) => ({ ...row, id: must(ids, row.id) })),
+    budgetCategories: (input.budgetCategories ?? []).map((row) => ({ ...row, id: must(ids, row.id) })),
+    budgetTargets: (input.budgetTargets ?? []).map((row) => ({ ...row, id: must(ids, row.id) })),
+    budgetEntries: (input.budgetEntries ?? []).map((row) => ({ ...row, id: must(ids, row.id) })),
+    budgetSettings: input.budgetSettings ?? { ...DEFAULT_BUDGET_SETTINGS },
+    cardAccounts: (input.cardAccounts ?? []).map((row) => ({ ...row, id: must(ids, row.id) })),
+    cardTxns: (input.cardTxns ?? []).map((row) => ({
+      ...row,
+      id: must(ids, row.id),
+      cardAccountId: must(ids, row.cardAccountId),
+    })),
     preferences: {
       ...input.preferences,
       activeScenarioId: mapId(ids, input.preferences.activeScenarioId),

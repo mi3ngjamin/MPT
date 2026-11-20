@@ -1,9 +1,11 @@
 import { RefreshCw } from 'lucide-react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { AllocationChart, Sparkline } from '../components/Charts';
 import { Empty, Stat } from '../components/ui';
 import { useFinance } from '../context/FinanceContext';
-import { todayLocal } from '../domain/dates';
+import { monthlySeries, periodBounds, prepareBudget, summarize } from '../domain/budget';
+import { addMonths, startOfMonth, todayLocal } from '../domain/dates';
 import { contractLabel } from '../domain/labels';
 import { money, moneyTight, pct, plClass } from '../lib/format';
 
@@ -11,6 +13,24 @@ export default function Dashboard() {
   const { books, snapshot, refreshPrices } = useFinance();
   const whatIf = snapshot.preferences.priceMode === 'what_if';
   const empty = books.portfolios.length === 0 && books.checking.length === 0;
+  const today = todayLocal();
+  const budgetCard = useMemo(() => {
+    const lines = prepareBudget({
+      accounts: snapshot.checkingAccounts,
+      checkingTxns: snapshot.checkingTxns,
+      entries: snapshot.budgetEntries,
+      categories: snapshot.budgetCategories,
+      cards: snapshot.cardAccounts,
+      cardTxns: snapshot.cardTxns,
+    });
+    const month = today.slice(0, 7);
+    const bounds = periodBounds('month', today, month);
+    const totals = summarize(lines, snapshot.budgetSettings, bounds.start, bounds.end, true);
+    const trendStart = addMonths(startOfMonth(today), -5);
+    const series = monthlySeries(lines, snapshot.budgetSettings, trendStart, today, true);
+    const budget = snapshot.budgetTargets.reduce((sum, row) => sum + row.monthlyAmount, 0);
+    return { totals, series, budget };
+  }, [snapshot, today]);
 
   if (empty) {
     return (
@@ -93,6 +113,18 @@ export default function Dashboard() {
         <Stat label="Realized" value={moneyTight(books.realized, true)} tone={plClass(books.realized)} />
         <Stat label="Day change" value={books.dayChange == null ? '—' : moneyTight(books.dayChange, true)} tone={plClass(books.dayChange)} hint="From the last close" />
       </section>
+
+      <Link to="/budget" className="card block p-4 transition hover:border-accent/40">
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted">Budget this month</p>
+            <p className="num mt-2 text-xl font-semibold">{moneyTight(budgetCard.totals.coreSpending)}</p>
+            <p className="mt-1 text-xs text-muted">Core spending vs {moneyTight(budgetCard.budget)} budgeted</p>
+          </div>
+          <p className={`num text-sm ${plClass(budgetCard.totals.net)}`}>Net {moneyTight(budgetCard.totals.net, true)}</p>
+        </div>
+        <Sparkline label="Core spending trend" points={budgetCard.series.map((point) => ({ date: point.month, value: point.coreSpending }))} />
+      </Link>
 
       <section>
         <h2 className="mb-3 font-semibold">Accounts</h2>

@@ -4,6 +4,7 @@ import {
   LineChart,
   List,
   Moon,
+  PiggyBank,
   Settings,
   Sun,
   Wallet,
@@ -19,6 +20,7 @@ const NAV = [
   { to: '/investments', label: 'Investments', short: 'Invest', icon: LineChart, end: false },
   { to: '/activity', label: 'Activity', short: 'Activity', icon: List, end: false },
   { to: '/checking', label: 'Checking', short: 'Cash', icon: Wallet, end: false },
+  { to: '/budget', label: 'Budget', short: 'Budget', icon: PiggyBank, end: false },
   { to: '/bills', label: 'Bills', short: 'Bills', icon: CalendarDays, end: false },
   { to: '/settings', label: 'Settings', short: 'Settings', icon: Settings, end: false },
 ];
@@ -108,7 +110,7 @@ export function Shell({ children }: { children: ReactNode }) {
         ) : null}
         <main className="page mx-auto max-w-6xl px-4 py-6 sm:px-6">{children}</main>
       </div>
-      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-6 border-t border-line bg-panel/95 px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur lg:hidden" aria-label="Primary">
+      <nav className="fixed inset-x-0 bottom-0 z-30 grid grid-cols-7 border-t border-line bg-panel/95 px-1 pb-[max(0.4rem,env(safe-area-inset-bottom))] pt-1 backdrop-blur lg:hidden" aria-label="Primary">
         {NAV.map((item) => (
           <NavLink
             key={item.to}

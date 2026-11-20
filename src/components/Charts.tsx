@@ -76,9 +76,9 @@ function ringSegment(cx: number, cy: number, r: number, startDeg: number, sweepD
   return `M ${x1} ${y1} A ${r} ${r} 0 ${large} 1 ${x2} ${y2}`;
 }
 
-export function Sparkline({ points }: { points: { date: string; value: number }[] }) {
+export function Sparkline({ points, label = 'Net worth trend' }: { points: { date: string; value: number }[]; label?: string }) {
   if (points.length < 2) {
-    return <p className="text-xs text-muted">Today is the first saved net worth point.</p>;
+    return <p className="text-xs text-muted">Not enough points for a trend yet.</p>;
   }
   const width = 320;
   const height = 72;
@@ -94,7 +94,7 @@ export function Sparkline({ points }: { points: { date: string; value: number }[
   const line = coords.map(([x, y], index) => `${index === 0 ? 'M' : 'L'}${x.toFixed(1)},${y.toFixed(1)}`).join(' ');
   const area = `${line} L${width},${height} L0,${height} Z`;
   return (
-    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-16 w-full" role="img" aria-label="Net worth trend">
+    <svg viewBox={`0 0 ${width} ${height}`} className="mt-3 h-16 w-full" role="img" aria-label={label}>
       <path d={area} fill="rgb(20 184 166 / 0.16)" />
       <path d={line} fill="none" stroke="#14b8a6" strokeWidth="2.5" strokeLinejoin="round" strokeLinecap="round" />
     </svg>

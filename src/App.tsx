@@ -5,6 +5,7 @@ import { FinanceProvider } from './context/FinanceContext';
 import { ThemeProvider } from './context/ThemeContext';
 import ActivityPage from './pages/Activity';
 import Bills from './pages/Bills';
+import Budget from './pages/Budget';
 import Checking from './pages/Checking';
 import Dashboard from './pages/Dashboard';
 import Investments from './pages/Investments';
@@ -42,6 +43,7 @@ function Gate() {
             <Route path="/investments" element={<Investments />} />
             <Route path="/activity" element={<ActivityPage />} />
             <Route path="/checking" element={<Checking />} />
+            <Route path="/budget" element={<Budget />} />
             <Route path="/bills" element={<Bills />} />
             <Route path="/settings" element={<Settings />} />
             <Route path="*" element={<Navigate to="/" replace />} />
